@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config version="1.0"
+	xmlns="http://www.quickcamteam.net"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.quickcamteam.net uvcconfig.xsd"
+>
+
+	<meta>
+		<version>1.0</version>
+		<author>Martin Rubli, Logitech</author>
+		<contact>martin_rubli@logitech.com</contact>
+		<revision>0.11</revision>
+		<copyright></copyright>
+	</meta>
+	
+	<constants>
+		<constant type="guid">
+			<id>UVC_GUID_LOGITECH_INFO</id>
+			<value>63610682-5070-49ab-b8cc-b3855e8d221E</value>
+		</constant>
+		<constant type="guid">
+			<id>UVC_GUID_LOGITECH_MOTORCONTROL</id>
+			<value>63610682-5070-49ab-b8cc-b3855e8d2256</value>
+		</constant>
+		<constant type="integer">
+			<id>XU_FIRMWARE_VERSION_CONTROL</id>
+			<value>1</value>
+		</constant>
+		<constant type="integer">
+			<id>XU_MOTORCONTROL_PANTILT_RELATIVE_CONTROL</id>
+			<value>1</value>
+		</constant>
+		<constant type="integer">
+			<id>V4L2_CID_GET_FIRMWARE_VERSION</id>
+			<value>0x0A046D03</value>
+		</constant>
+		<constant type="integer">
+			<id>V4L2_CID_PAN_RELATIVE</id>
+			<value>0x0A046D01</value>
+		</constant>
+		<constant type="integer">
+			<id>V4L2_CID_TILT_RELATIVE</id>
+			<value>0x0A046D02</value>
+		</constant>
+	</constants>
+	
+	<devices>
+		<device>
+			<match>
+				<vendor_id>0x046d</vendor_id>
+			</match>
+			
+			<controls>
+				<control id="logitech_get_firmware_version">
+					<entity>UVC_GUID_LOGITECH_INFO</entity>
+					<selector>XU_FIRMWARE_VERSION_CONTROL</selector>
+					<index>1</index>
+					<size>4</size>
+					<requests>
+						<request>GET_CUR</request>
+						<request>GET_DEF</request>
+					</requests>
+				</control>
+			</controls>
+		</device>
+	</devices>
+
+	<devices>
+		<device>
+			<match>
+				<vendor_id>0x046d</vendor_id>
+				<product_id>0x08cc</product_id>
+			</match>
+			
+			<controls>
+				<control id="logitech_motor_pantilt_relative">
+					<entity>UVC_GUID_LOGITECH_MOTORCONTROL</entity>
+					<selector>XU_MOTORCONTROL_PANTILT_RELATIVE_CONTROL</selector>
+					<index>1</index>
+					<size>4</size>
+					<requests>
+						<request>SET_CUR</request>
+						<request>GET_MIN</request>
+						<request>GET_MAX</request>
+						<request>GET_DEF</request>
+					</requests>
+					<description>
+						Allows the control of pan/tilt motor movements for the QuickCam Orbit/Sphere camera models.
+						Bits 0 to 15 control pan, bits 16 to 31 control tilt. The unit of the pan/tilt values is 1/64th of a degree and the resolution is 1 degree.
+					</description>
+				</control>
+			</controls>
+		</device>
+	</devices>
+
+	<mappings>
+		<mapping>
+			<name>Firmware version</name>
+
+			<uvc>
+				<control_ref idref="logitech_get_firmware_version"/>
+				<size>16</size>
+				<offset>0</offset>
+				<uvc_type>UVC_CTRL_DATA_TYPE_UNSIGNED</uvc_type>
+			</uvc>
+			<v4l2>
+				<id>V4L2_CID_GET_FIRMWARE_VERSION</id>
+				<v4l2_type>V4L2_CTRL_TYPE_INTEGER</v4l2_type>
+			</v4l2>
+			<description>
+				A 16-bit value indicating the firmware version. The high-order byte specifies the major version, the low-order byte specifies the minor version.
+			</description>
+		</mapping>
+	
+		<mapping>
+			<name>Pan (relative)</name>
+			
+			<uvc>
+				<control_ref idref="logitech_motor_pantilt_relative"/>
+				<size>16</size>
+				<offset>0</offset>
+				<uvc_type>UVC_CTRL_DATA_TYPE_SIGNED</uvc_type>
+			</uvc>
+			<v4l2>
+				<id>V4L2_CID_PAN_RELATIVE</id>
+				<v4l2_type>V4L2_CTRL_TYPE_INTEGER</v4l2_type>
+			</v4l2>
+		</mapping>
+		
+		<mapping>
+			<name> Tilt
+			(relative) </name>
+			<uvc>
+				<control_ref idref="logitech_motor_pantilt_relative"/>
+				<size>16</size>
+				<offset>16</offset>
+				<uvc_type>UVC_CTRL_DATA_TYPE_SIGNED</uvc_type>
+			</uvc>
+			<v4l2>
+				<id>V4L2_CID_TILT_RELATIVE</id>
+				<v4l2_type>V4L2_CTRL_TYPE_INTEGER</v4l2_type>
+			</v4l2>
+		</mapping>
+		
+	</mappings>
+</config>

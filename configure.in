@@ -1,0 +1,54 @@
+AC_PREREQ(2.59)
+
+AC_INIT([Linux Webcam Infrastructure], [0.1], [martin_rubli@logitech.com], wci)
+AM_INIT_AUTOMAKE([1.9 foreign])
+
+AC_CONFIG_SRCDIR([Libs/libwebcam/libwebcam.c])
+AC_CONFIG_HEADER([config.h])
+
+# Library versions
+LIBWEBCAM_INTERFACE_CURRENT=0
+LIBWEBCAM_INTERFACE_REVISION=0
+LIBWEBCAM_INTERFACE_AGE=0
+LIBWEBCAM_INTERFACE_VERSION=$LIBWEBCAM_INTERFACE_CURRENT:$LIBWEBCAM_INTERFACE_REVISION:$LIBWEBCAM_INTERFACE_AGE
+
+AC_SUBST(LIBWEBCAM_INTERFACE_VERSION)
+
+# Library paths
+AC_SUBST(LIBWEBCAM_DIR)
+
+# Checks for programs
+AC_PROG_CC
+AC_PROG_LIBTOOL
+
+AC_ARG_VAR(PKGCONFIGFOUND, [Path to pkg-config])
+AC_CHECK_PROG(PKGCONFIGFOUND, pkg-config, yes, no)
+
+
+#############################################
+# Check for LibXML2
+#############################################
+
+LIBXML2_REQ=2.6
+
+PKG_CHECK_MODULES(LIBXML2, \
+	libxml-2.0 >= $LIBXML2_REQ,
+	have_libxml2=yes,have_libxml2=no)
+
+if test "_$have_libxml2" = "_no"; then
+	AC_MSG_ERROR(LibXML2 development packages not found (>= $LIBXML2_REQ)!)
+fi
+AC_SUBST(LIBXML2_CFLAGS)
+AC_SUBST(LIBXML2_LIBS)
+
+
+#############################################
+# Output
+#############################################
+
+AC_CONFIG_FILES([Makefile
+                 Libs/Makefile
+                 Libs/libwebcam/Makefile
+                 Apps/Makefile
+				 Apps/uvcdynctrl/Makefile])
+AC_OUTPUT

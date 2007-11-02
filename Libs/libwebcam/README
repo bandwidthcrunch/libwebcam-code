@@ -1,0 +1,70 @@
+libwebcam Webcam Library
+========================
+
+Introduction
+------------
+
+The Webcam Library libwebcam is designed to simplify the development of webcam
+applications, primarily on Linux but with an option to be ported to other
+platforms, in particular Solaris. It realizes part of what the unwritten
+Video4Linux user space library was always supposed to be: an easy to use
+library that shields its users from many of the difficulties and problems of
+using the V4L2 API directly.
+
+Today libwebcam provides the following core features:
+
+* Enumeration of all cameras available in the system.
+* Provide detailed information about the detected devices and their controls.
+* Wrapper for the V4L2 frame format enumeration.
+* Convenient access to device controls.
+* Support for configuring the Linux UVC driver's dynamic controls (extension
+  unit controls).
+
+In addition, the interface is prepared to handle device events ranging from
+newly detected cameras over control value changes to device button events.
+It is easy to add new features without breaking application compatibility and
+the addition of new controls or events is straightforward.
+
+
+Versions
+--------
+
+Note that the latest version of the Webcam Library and this API documentation
+can always be found at the following address:
+
+QuickCam Team
+  http://www.quickcamteam.net
+
+Change log:
+
+0.1: Initial release
+
+
+Questions and feedback
+----------------------
+
+There is a forum for developers and users of the Webcam Library. Please feel
+free to post your questions and comments:
+
+QuickCam Team discussion forums
+  http://forums.quickcamteam.net/forumdisplay.php
+
+
+Copyright and license
+---------------------
+
+Copyright (c) 2006-2007 Logitech.
+
+libwebcam is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+libwebcam is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with libwebcam.  If not, see <http://www.gnu.org/licenses/>.
+
