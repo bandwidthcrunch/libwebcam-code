@@ -33,11 +33,56 @@ Note that the latest version of the Webcam Library and this API documentation
 can always be found at the following address:
 
 QuickCam Team
-  http://www.quickcamteam.net
+  http://www.quickcamteam.net/
 
 Change log:
 
 0.1: Initial release
+
+
+Building
+--------
+
+External dependencies:
+- uvcvideo (Linux UVC driver)
+- libxml2
+- gengetopt
+
+Important note on the uvcvideo and gengetopt dependencies:
+
+The configure script does not currently check for the existence of gengetopt.
+Make sure you install it before running 'make', otherwise your build will fail.
+This may be fixed in a future release.
+
+Unless the USE_UVCVIDEO constant is disabled (it is enabled by default),
+libwebcam needs two header files from the Linux UVC driver. If you don't
+already have them on your hard disk, you can download them from the uvcvideo
+project's home page at http://linux-uvc.berlios.de/ or directly from the
+Subversion repository at:
+http://svn.berlios.de/svnroot/repos/linux-uvc/linux-uvc/trunk/
+
+You must copy or link uvcvideo.h and uvc_compat.h into the /Common/include/
+directory, e.g. using the following commands:
+
+cd Common/include/
+ln -s ~/uvcvideo/trunk/uvcvideo.h
+ln -s ~/uvcvideo/trunk/uvc_compat.h
+
+or
+
+cd Common/include/
+wget http://svn.berlios.de/svnroot/repos/linux-uvc/linux-uvc/trunk/uvcvideo.h
+wget http://svn.berlios.de/svnroot/repos/linux-uvc/linux-uvc/trunk/uvc_compat.h
+
+Once you have those two files you can continue as normal.
+
+The build system is currently based on GNU Automake, so you should be able to
+build and install it by running the following commands in the top-level
+directory:
+
+./autogen.sh
+make
+sudo make install
 
 
 Questions and feedback
