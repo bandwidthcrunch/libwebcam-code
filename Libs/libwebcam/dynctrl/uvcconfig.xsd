@@ -187,7 +187,7 @@
 	<xs:element name="device">
 		<xs:complexType>
 			<xs:sequence>
-				<xs:element ref="match" />
+				<xs:element ref="match" minOccurs="0" maxOccurs="unbounded" />
 				<xs:element ref="controls" />
 			</xs:sequence>
 		</xs:complexType>
@@ -197,7 +197,7 @@
 		<xs:complexType>
 			<xs:sequence>
 				<xs:element ref="vendor_id" />
-				<xs:element ref="product_id" minOccurs="0" />
+				<xs:element ref="product_id" minOccurs="0" maxOccurs="unbounded" />
 			</xs:sequence>
 		</xs:complexType>
 	</xs:element>

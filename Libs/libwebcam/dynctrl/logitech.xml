@@ -9,31 +9,19 @@
 	<meta>
 		<version>1.0</version>
 		<author>Martin Rubli, Logitech</author>
-		<contact>martin_rubli@logitech.com</contact>
-		<revision>0.11</revision>
-		<copyright></copyright>
+		<contact>http://www.quickcamteam.net/</contact>
+		<revision>0.12</revision>
+		<copyright>Copyright (c) 2006-2007 Logitech</copyright>
 	</meta>
 	
 	<constants>
-		<constant type="guid">
-			<id>UVC_GUID_LOGITECH_INFO</id>
-			<value>63610682-5070-49ab-b8cc-b3855e8d221E</value>
-		</constant>
 		<constant type="guid">
 			<id>UVC_GUID_LOGITECH_MOTORCONTROL</id>
 			<value>63610682-5070-49ab-b8cc-b3855e8d2256</value>
 		</constant>
 		<constant type="integer">
-			<id>XU_FIRMWARE_VERSION_CONTROL</id>
-			<value>1</value>
-		</constant>
-		<constant type="integer">
 			<id>XU_MOTORCONTROL_PANTILT_RELATIVE_CONTROL</id>
 			<value>1</value>
-		</constant>
-		<constant type="integer">
-			<id>V4L2_CID_GET_FIRMWARE_VERSION</id>
-			<value>0x0A046D03</value>
 		</constant>
 		<constant type="integer">
 			<id>V4L2_CID_PAN_RELATIVE</id>
@@ -49,28 +37,12 @@
 		<device>
 			<match>
 				<vendor_id>0x046d</vendor_id>
-			</match>
-			
-			<controls>
-				<control id="logitech_get_firmware_version">
-					<entity>UVC_GUID_LOGITECH_INFO</entity>
-					<selector>XU_FIRMWARE_VERSION_CONTROL</selector>
-					<index>1</index>
-					<size>4</size>
-					<requests>
-						<request>GET_CUR</request>
-						<request>GET_DEF</request>
-					</requests>
-				</control>
-			</controls>
-		</device>
-	</devices>
-
-	<devices>
-		<device>
-			<match>
-				<vendor_id>0x046d</vendor_id>
+				<!-- Logitech QuickCam Orbit/Sphere MP -->
+				<product_id>0x08c2</product_id>
+				<!-- Logitech QuickCam Orbit/Sphere MP (2006 model) -->
 				<product_id>0x08cc</product_id>
+				<!-- Logitech QuickCam Orbit/Sphere AF -->
+				<product_id>0x0994</product_id>
 			</match>
 			
 			<controls>
@@ -96,24 +68,6 @@
 
 	<mappings>
 		<mapping>
-			<name>Firmware version</name>
-
-			<uvc>
-				<control_ref idref="logitech_get_firmware_version"/>
-				<size>16</size>
-				<offset>0</offset>
-				<uvc_type>UVC_CTRL_DATA_TYPE_UNSIGNED</uvc_type>
-			</uvc>
-			<v4l2>
-				<id>V4L2_CID_GET_FIRMWARE_VERSION</id>
-				<v4l2_type>V4L2_CTRL_TYPE_INTEGER</v4l2_type>
-			</v4l2>
-			<description>
-				A 16-bit value indicating the firmware version. The high-order byte specifies the major version, the low-order byte specifies the minor version.
-			</description>
-		</mapping>
-	
-		<mapping>
 			<name>Pan (relative)</name>
 			
 			<uvc>
@@ -129,8 +83,7 @@
 		</mapping>
 		
 		<mapping>
-			<name> Tilt
-			(relative) </name>
+			<name>Tilt (relative)</name>
 			<uvc>
 				<control_ref idref="logitech_motor_pantilt_relative"/>
 				<size>16</size>
@@ -142,6 +95,5 @@
 				<v4l2_type>V4L2_CTRL_TYPE_INTEGER</v4l2_type>
 			</v4l2>
 		</mapping>
-		
 	</mappings>
 </config>
