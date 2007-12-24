@@ -155,6 +155,8 @@ typedef struct _ParseContext {
 	int				v4l2_handle;
 	/// List of controls parsed from the @c devices nodes
 	UVCXUControl	* controls;
+	/// The current parsing pass (first device is pass 1, second device pass 2, etc.)
+	int				pass;
 
 } ParseContext;
 
@@ -838,6 +840,21 @@ static CResult add_message (ParseContext *ctx, int line, int col, CDynctrlMessag
 }
 
 
+/**
+ * Adds a new informational message to the message list.
+ */
+static CResult add_info (ParseContext *ctx, const char *format, ...)
+{
+	va_list va;
+
+	va_start(va, format);
+	CResult ret = add_message_v(ctx, 0, 0, CD_SEVERITY_INFO, format, va);
+	va_end(va);
+
+	return ret;
+}
+
+
 /*
 static CResult add_warning (ParseContext *ctx, const char *format, ...)
 {
@@ -929,7 +946,7 @@ static CResult parse_dynctrl_file (const char *file_name, xmlDoc **xml_doc, Pars
 
 	// Validate the XML file against the schema
 	if(!ctx->info || !(ctx->info->flags & CD_DONT_VALIDATE)) {
-		// TODO
+		// TODO implement
 	}
 
 	// Free the document tree if there was an error
@@ -961,7 +978,7 @@ static CResult process_mapping (const xmlNode *node_mapping, ParseContext *ctx)
 	// At the moment only V4L2 mappings are supported
 	xmlNode *node_v4l2 = xml_get_first_child_by_name(node_mapping, "v4l2");
 	if(!node_v4l2) {
-		// TODO
+		// TODO implement
 		return C_NOT_IMPLEMENTED;
 	}
 
@@ -1086,10 +1103,15 @@ static CResult process_mapping (const xmlNode *node_mapping, ParseContext *ctx)
 	);
 	*/
 	int v4l2_ret = ioctl(ctx->v4l2_handle, UVCIOC_CTRL_MAP, &mapping_info);
-	if(v4l2_ret != 0) {
+	if(v4l2_ret != 0
+#ifdef DYNCTRL_IGNORE_EEXIST_AFTER_PASS1
+			&& (ctx->pass == 1 || errno != EEXIST)
+#endif
+		)
+	{
 		add_error(ctx,
-			"unable to map '%s' control. ioctl(UVCIOC_CTRL_MAP) failed with error %d (errno = %d)",
-			mapping_info.name, v4l2_ret, errno);
+			"unable to map '%s' control. ioctl(UVCIOC_CTRL_MAP) failed with return value %d (error %d: %s)",
+			mapping_info.name, v4l2_ret, errno, strerror(errno));
 		return C_V4L2_ERROR;
 	}
 
@@ -1107,7 +1129,13 @@ static CResult process_mappings (const xmlNode *node_mappings, ParseContext *ctx
 	// Process all <mapping> nodes
 	xmlNode *node_mapping = xml_get_first_child_by_name(node_mappings, "mapping");
 	while(node_mapping) {
-		process_mapping(node_mapping, ctx);
+		CResult ret = process_mapping(node_mapping, ctx);
+		if(ctx->info) {
+			if(ret)
+				ctx->info->stats.mappings.successful++;
+			else
+				ctx->info->stats.mappings.failed++;
+		}
 		node_mapping = xml_get_next_sibling_by_name(node_mapping, "mapping");
 	}
 
@@ -1220,11 +1248,17 @@ static CResult process_control (xmlNode *node_control, ParseContext *ctx)
 	);
 	*/
 	int v4l2_ret = ioctl(ctx->v4l2_handle, UVCIOC_CTRL_ADD, &xu_control->info);
-	if(v4l2_ret != 0) {
+	if(v4l2_ret != 0
+#ifdef DYNCTRL_IGNORE_EEXIST_AFTER_PASS1
+			&& (ctx->pass == 1 || errno != EEXIST)
+#endif
+		)
+	{
 		add_error(ctx,
 			"unable to add control with GUID {"GUID_FORMAT"} and selector %d. "
-			"ioctl(UVCIOC_CTRL_ADD) failed with error %d (errno = %d)",
-			GUID_ARGS(xu_control->info.entity), xu_control->info.selector, v4l2_ret, errno);
+			"ioctl(UVCIOC_CTRL_ADD) failed with return value %d (error %d: %s)",
+			GUID_ARGS(xu_control->info.entity), xu_control->info.selector,
+			v4l2_ret, errno, strerror(errno));
 		ret = C_V4L2_ERROR;
 	}
 
@@ -1256,7 +1290,13 @@ static CResult process_controls (const xmlNode *node_controls, ParseContext *ctx
 	// Process all <control> nodes
 	xmlNode *node_control = xml_get_first_child_by_name(node_controls, "control");
 	while(node_control) {
-		process_control(node_control, ctx);
+		CResult ret = process_control(node_control, ctx);
+		if(ctx->info) {
+			if(ret)
+				ctx->info->stats.controls.successful++;
+			else
+				ctx->info->stats.controls.failed++;
+		}
 		node_control = xml_get_next_sibling_by_name(node_control, "control");
 	}
 
@@ -1363,8 +1403,6 @@ static CResult process_constant (xmlNode *node_constant, ParseContext *ctx)
 			break;
 	}
 
-	//printf("constant { type = %d, name = '%s' }\n", constant->type, constant->name);
-
 	// Add the constant to the internal list for later reference
 	constant->next = ctx->constants;
 	ctx->constants = constant;
@@ -1390,7 +1428,13 @@ static CResult process_constants (const xmlNode *node_constants, ParseContext *c
 	// Process all <constant> nodes
 	xmlNode *node_constant = xml_get_first_child_by_name(node_constants, "constant");
 	while(node_constant) {
-		process_constant(node_constant, ctx);
+		CResult ret = process_constant(node_constant, ctx);
+		if(ctx->info) {
+			if(ret)
+				ctx->info->stats.constants.successful++;
+			else
+				ctx->info->stats.constants.failed++;
+		}
 		node_constant = xml_get_next_sibling_by_name(node_constant, "constant");
 	}
 
@@ -1429,7 +1473,7 @@ static CResult process_meta (const xmlNode *node_meta, ParseContext *ctx)
 
 
 /**
- * Process a XML document tree representing a dynamic controls configuration file.
+ * Process an XML document tree representing a dynamic controls configuration file.
  */
 static CResult process_dynctrl_doc (xmlDoc *xml_doc, ParseContext *ctx)
 {
@@ -1439,14 +1483,18 @@ static CResult process_dynctrl_doc (xmlDoc *xml_doc, ParseContext *ctx)
 
 	xmlNode *node_root = xmlDocGetRootElement(xml_doc);
 	assert(node_root);
+	ctx->pass++;	// We start at pass 1 ...
 
-	// Find and process the <meta> node
-	ret = process_meta(xml_get_first_child_by_name(node_root, "meta"), ctx);
-	if(ret) return ret;
+	// Some processing only needs to be done in the first pass
+	if(ctx->pass == 1) {
+		// Find and process the <meta> node
+		ret = process_meta(xml_get_first_child_by_name(node_root, "meta"), ctx);
+		if(ret) return ret;
 
-	// Find the <constants> list (if it exists)
-	ret = process_constants(xml_get_first_child_by_name(node_root, "constants"), ctx);
-	if(ret) return ret;
+		// Find the <constants> list (if it exists)
+		ret = process_constants(xml_get_first_child_by_name(node_root, "constants"), ctx);
+		if(ret) return ret;
+	}
 
 	// Process all <devices> lists
 	xmlNode *node_devices = xml_get_first_child_by_name(node_root, "devices");
@@ -1457,6 +1505,83 @@ static CResult process_dynctrl_doc (xmlDoc *xml_doc, ParseContext *ctx)
 
 	// Process the <mappings> node
 	ret = process_mappings(xml_get_first_child_by_name(node_root, "mappings"), ctx);
+
+	return ret;
+}
+
+
+/**
+ * Checks whether the driver behind the current device supports dynamic controls.
+ *
+ * The check is done by redefining the brightness control which is hardcoded in the
+ * UVC driver. If the driver supports dynamic controls, it will return EEXIST.
+ * If the driver does not support dynamic controls, the ioctl will fail with EINVAL.
+ *
+ * @param ctx		current parse context
+ *
+ * @return
+ * 		- #C_SUCCESS if the driver supports dynamic controls
+ * 		- #C_NOT_IMPLEMENTED if the driver does not support dynamic controls
+ */
+static CResult device_supports_dynctrl(ParseContext *ctx)
+{
+	CResult ret = C_SUCCESS;
+	struct uvc_xu_control_info xu_control = {
+		.entity		= /* UVC_GUID_UVC_PROCESSING */ { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01 },
+		.selector	= /* PU_BRIGHTNESS_CONTROL */ 0x02,
+		.index		= 0,
+		.size		= 0,
+		.flags		= 0
+	};
+	
+	assert(ctx->v4l2_handle);
+
+	int v4l2_ret = ioctl(ctx->v4l2_handle, UVCIOC_CTRL_ADD, &xu_control);
+	if(v4l2_ret != -1 || errno != EEXIST)
+		ret = C_NOT_IMPLEMENTED;
+
+	return ret;
+}
+
+
+/** 
+ * Adds controls and control mappings contained in the given XML tree to the UVC driver.
+ *
+ * @param hDevice	device handle to be used to add the controls and control mappings
+ * @param xml_doc	XML document tree corresponding to the dynctrl format
+ * @param ctx		current parse context
+ *
+ * @return
+ * 		- #C_INVALID_DEVICE if no devices are available
+ * 		- #C_SUCCESS if adding the controls and control mappings was successful
+ */
+CResult add_control_mappings (CHandle hDevice, xmlDoc *xml_doc, ParseContext *ctx)
+{
+	CResult ret = C_SUCCESS;
+
+	assert(HANDLE_OPEN(hDevice));
+	assert(HANDLE_VALID(hDevice));
+
+	// Open the V4L2 device
+	ctx->v4l2_handle = open_v4l2_device(GET_HANDLE(hDevice).device->v4l2_name);
+	if(!ctx->v4l2_handle) {
+		ret = C_INVALID_DEVICE;
+		goto done;
+	}
+
+	// Check if the driver supports dynamic controls
+	ret = device_supports_dynctrl(ctx);
+	if(ret) goto done;
+
+	// Process the contained control mappings
+	ret = process_dynctrl_doc(xml_doc, ctx);
+
+done:
+	// Close the device handle
+	if(ctx && ctx->v4l2_handle) {
+		close(ctx->v4l2_handle);
+		ctx->v4l2_handle = 0;
+	}
 
 	return ret;
 }
@@ -1486,7 +1611,7 @@ static CResult process_dynctrl_doc (xmlDoc *xml_doc, ParseContext *ctx)
  *
  * @return
  * 		- #C_INIT_ERROR if the library has not been initialized
- * 		- #C_INVALID_DEVICE if no devices are available
+ * 		- #C_INVALID_DEVICE if no supported devices are available
  * 		- #C_NO_MEMORY if memory could not be allocated
  * 		- #C_SUCCESS if the parsing was successful and no fatal error occurred
  */
@@ -1494,24 +1619,27 @@ CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *i
 {
 	CResult ret = C_SUCCESS;
 	CDevice *devices = NULL;
-	CHandle hDevice = 0;
 	ParseContext *ctx = NULL;
 	xmlDoc *xml_doc = NULL;
 
 	if(!initialized)
 		return C_INIT_ERROR;
 	
-	// Test if there are any devices connected
+	// Enumerate the devices and abort if there are no devices present
 	unsigned int size = 0, device_count = 0;
 	ret = c_enum_devices(NULL, &size, &device_count);
 	if(ret == C_SUCCESS) {
-		// Our zero buffer was large enough, so no devices are present.
+		// Our zero buffer was large enough, so no devices are present
 		return C_INVALID_DEVICE;
 	}
 	else if(ret != C_BUFFER_TOO_SMALL) {
 		// Something bad has happened, so bail out
 		return ret;
 	}
+	assert(device_count > 0);
+	devices = (CDevice *)malloc(size);
+	ret = c_enum_devices(devices, &size, &device_count);
+	if(ret) goto done;
 
 	// Allocate memory for the parsing context
 	ctx = (ParseContext *)malloc(sizeof(ParseContext));
@@ -1526,41 +1654,69 @@ CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *i
 	ret = parse_dynctrl_file(file_name, &xml_doc, ctx);
 	if(ret) goto done;
 
-	// Open the first device. This will be the device used to add the control mappings.
-	devices = (CDevice *)malloc(size);
-	ret = c_enum_devices(devices, &size, &device_count);
-	if(ret) goto done;
-	hDevice = c_open_device(devices->shortName);
-	if(hDevice == 0) {
-		ret = C_INVALID_DEVICE;
-		goto done;
-	}
-	Device *device = GET_HANDLE(hDevice).device;
-	ctx->v4l2_handle = open_v4l2_device(device->v4l2_name);
-	if(!ctx->v4l2_handle) {
-		ret = C_INVALID_DEVICE;
-		goto done;
-	}
-
 	// Allocate a conversion descriptor
 	ctx->cd = iconv_open("ASCII", "UTF-8");
 	assert(ctx->cd != (iconv_t)-1);
 
-	// Process the contained control mappings
-	ret = process_dynctrl_doc(xml_doc, ctx);
+	// Loop through the devices and check which ones have a supported uvcvideo driver behind them
+	int i, successful_devices = 0;
+	for(i = 0; i < device_count; i++) {
+		CDevice *device = &devices[i];
+
+		// Skip non-UVC devices
+		if(strcmp(device->driver, "uvcvideo") != 0) {
+			add_info(ctx,
+				"device '%s' skipped because it is not a UVC device.",
+				device->shortName
+			);
+			continue;
+		}
+
+		// Create a device handle
+		CHandle hDevice = c_open_device(device->shortName);
+		if(!hDevice) {
+			add_error(ctx,
+				"device '%s' skipped because it could not be opened.",
+				device->shortName
+			);
+			continue;
+		}
+
+		// Add the parsed control mappings to this device
+		ret = add_control_mappings(hDevice, xml_doc, ctx);
+		if(ret == C_SUCCESS) {
+			successful_devices++;
+		}
+		else if(ret == C_NOT_IMPLEMENTED) {
+			add_error(ctx,
+				"device '%s' skipped because the driver '%s' behind it does not seem "
+				"to support dynamic controls.",
+				device->shortName, device->driver
+			);
+		}
+		else {
+			char *error = c_get_handle_error_text(hDevice, ret);
+			assert(error);
+			add_error(ctx,
+				"device '%s' was not processed successfully: %s. (Code: %d)",
+				device->shortName, error, ret
+			);
+			free(error);
+		}
+
+		// Close the device handle
+		c_close_device(hDevice);
+	}
+	if(successful_devices == 0)
+		ret = C_INVALID_DEVICE;
 
 done:
 	// Close the conversion descriptor
 	if(ctx && ctx->cd && ctx->cd != (iconv_t)-1)
 		iconv_close(ctx->cd);
 
-	// Close the device handle
-	if(ctx && ctx->v4l2_handle)
-		close(ctx->v4l2_handle);
-	if(hDevice)
-		c_close_device(hDevice);
-
 	// Clean up
+	if(xml_doc) xmlFreeDoc(xml_doc);
 	if(ctx) {
 		// Free the ParseContext.constants list
 		Constant *celem = ctx->constants;
@@ -1583,7 +1739,6 @@ done:
 		free(ctx);
 	}
 	if(devices) free(devices);
-	if(xml_doc) xmlFreeDoc(xml_doc);
 
 	return ret;
 }

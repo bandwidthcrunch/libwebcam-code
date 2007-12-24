@@ -73,8 +73,8 @@ static int get_device_dynamics_length (CDevice *device);
 static int get_devices_dynamics_length (void);
 
 int open_v4l2_device(char *device_name);
-static CResult read_v4l2_control(Device *device, Control *control, CControlValue *value);
-static CResult write_v4l2_control(Device *device, Control *control, const CControlValue *value);
+static CResult read_v4l2_control(Device *device, Control *control, CControlValue *value, CHandle hDevice);
+static CResult write_v4l2_control(Device *device, Control *control, const CControlValue *value, CHandle hDevice);
 static CControlId get_control_id_from_v4l2 (int v4l2_id, Device *dev);
 
 static CResult get_device_usb_info (Device *device, CUSBInfo *usbinfo);
@@ -82,6 +82,7 @@ static CResult get_mimetype_from_fourcc(char **mimetype, unsigned int fourcc);
 
 static CHandle create_handle(Device *device);
 static void close_handle(CHandle handle);
+static void set_last_error(CHandle hDevice, int error);
 
 
 /*
@@ -408,6 +409,7 @@ CResult c_enum_pixel_formats (CHandle hDevice, CPixelFormat *formats, unsigned i
 	}
 	if(errno != EINVAL) {
 		ret = C_V4L2_ERROR;
+		set_last_error(hDevice, errno);
 		goto done;
 	}
 
@@ -436,7 +438,8 @@ CResult c_enum_pixel_formats (CHandle hDevice, CPixelFormat *formats, unsigned i
 
 		// Copy the strings
 		copy_string_to_buffer(&current->name, elem->format.name, formats, &dynamics_offset);
-		copy_string_to_buffer(&current->mimeType, elem->format.mimeType, formats, &dynamics_offset);
+		if(elem->format.mimeType)
+			copy_string_to_buffer(&current->mimeType, elem->format.mimeType, formats, &dynamics_offset);
 
 		current++;
 		elem = elem->next;
@@ -569,6 +572,7 @@ CResult c_enum_frame_sizes (CHandle hDevice, const CPixelFormat *pixelformat, CF
 	}
 	if(errno != EINVAL) {
 		ret = C_V4L2_ERROR;
+		set_last_error(hDevice, errno);
 		goto done;
 	}
 
@@ -621,7 +625,7 @@ done:
  * @param	pixelformat	the pixel format for which the frame intervals should be
  * 						enumerated
  * @param	framesize	the frame size for which the frame intervals should be
- * 						enumerated
+ * 						enumerated. Note that this frame size's type must be discrete.
  * @param	intervals	a pointer to a buffer that retrieves the list of frame
  * 						intervals
  * @param	size		a pointer to an integer that contains or receives the size
@@ -637,7 +641,7 @@ done:
  * 		- #C_INVALID_HANDLE if the given device handle is invalid
  * 		- #C_INVALID_ARG if no size pointer was given; if a size pointer was given
  * 		  but no @a sizes buffer was given; if @a pixelformat or @a framesize were
- * 		  not given
+ * 		  not given; if a non-descrete frame size was given
  * 		- #C_INVALID_DEVICE if the device could not be opened
  * 		- #C_BUFFER_TOO_SMALL if the supplied buffer is not large enough
  * 		- #C_NO_MEMORY if no temporary memory could be allocated
@@ -657,6 +661,11 @@ CResult c_enum_frame_intervals (CHandle hDevice, const CPixelFormat *pixelformat
 		return C_NOT_EXIST;
 	Device *device = GET_HANDLE(hDevice).device;
 	if(size == NULL || pixelformat == NULL || framesize == NULL)
+		return C_INVALID_ARG;
+	
+	// The frame size must be discrete because V4L2's VIDIOC_ENUM_FRAMEINTERVALS function
+	// only accepts a single width and height.
+	if(framesize->type != CF_SIZE_DISCRETE)
 		return C_INVALID_ARG;
 
 	// Open the corresponding V4L2 device
@@ -726,6 +735,7 @@ CResult c_enum_frame_intervals (CHandle hDevice, const CPixelFormat *pixelformat
 	}
 	if(errno != EINVAL) {
 		ret = C_V4L2_ERROR;
+		set_last_error(hDevice, errno);
 		goto done;
 	}
 
@@ -914,7 +924,7 @@ CResult c_set_control (CHandle hDevice, CControlId control_id, const CControlVal
 
 	// Write the control in a way that depends on its source
 	if(control->v4l2_control) {		// V4L2
-		ret = write_v4l2_control(device, control, value);
+		ret = write_v4l2_control(device, control, value, hDevice);
 	}
 	else {
 		assert(0);
@@ -967,7 +977,7 @@ CResult c_get_control (CHandle hDevice, CControlId control_id, CControlValue *va
 
 	// Read the control in a way that depends on its source
 	if(control->v4l2_control) {		// V4L2
-		ret = read_v4l2_control(device, control, value);
+		ret = read_v4l2_control(device, control, value, hDevice);
 	}
 	else {
 		assert(0);
@@ -1040,6 +1050,27 @@ CResult c_unsubscribe_event (CHandle hDevice, CEventId event_id)
  */
 char *c_get_error_text (CResult error)
 {
+	return c_get_handle_error_text(0, error);
+}
+
+
+/**
+ * Returns the error message associated with a given error code and device handle.
+ *
+ * Note that the caller must free the buffer returned by this function. Compared to the
+ * #c_get_error_text() function, this function can take the handle's last system error
+ * into account.
+ *
+ * @param hDevice	an open device handle. If this parameter is 0, the function behaves
+ *					exactly like #c_get_error_text().
+ * @param error		error code for which the message should be retrieved
+ * @return
+ * 		- a newly allocated string describing the given error code
+ * 		- NULL if not enough memory was available or if the error code is
+ * 		  unknown
+ */
+char *c_get_handle_error_text (CHandle hDevice, CResult error)
+{
 	switch(error) {
 		case C_SUCCESS:				return strdup("Success");
 		case C_NOT_IMPLEMENTED:		return strdup("The function is not implemented");
@@ -1052,7 +1083,17 @@ char *c_get_error_text (CResult error)
 		case C_SYNC_ERROR:			return strdup("Error during data synchronization");
 		case C_NO_MEMORY:			return strdup("Out of memory");
 		case C_NO_HANDLES:			return strdup("Out of handles");
-		case C_V4L2_ERROR:			return strdup("A Video4Linux2 API call returned an unexpected error");
+		case C_V4L2_ERROR:
+		{
+			char *text = NULL;
+			if(hDevice && HANDLE_OPEN(hDevice)) {
+				if(asprintf(&text, "A Video4Linux2 API call returned an unexpected error %d", GET_HANDLE(hDevice).last_system_error) == -1)
+					text = NULL;;
+			}
+			if(!text)
+				return strdup("A Video4Linux2 API call returned an unexpected error");
+			return text;
+		}
 		case C_SYSFS_ERROR:			return strdup("A sysfs file access returned an error");
 		case C_PARSE_ERROR:			return strdup("A control could not be parsed");
 		case C_CANNOT_WRITE:		return strdup("Writing not possible (e.g. read-only control)");
@@ -1207,12 +1248,19 @@ static Control *create_control (Device *device, struct v4l2_queryctrl *v4l2_ctrl
 	CResult ret = C_SUCCESS;
 	Control *ctrl = NULL;
 
-	// Map
+	// Map V4L2 control types to libwebcam control types
 	CControlType type;
 	switch(v4l2_ctrl->type) {
 		case V4L2_CTRL_TYPE_INTEGER:	type = CC_TYPE_DWORD;		break;
 		case V4L2_CTRL_TYPE_BOOLEAN:	type = CC_TYPE_BOOLEAN;		break;
 		case V4L2_CTRL_TYPE_MENU:		type = CC_TYPE_CHOICE;		break;
+		case V4L2_CTRL_TYPE_BUTTON:		// TODO implement
+		case V4L2_CTRL_TYPE_INTEGER64:	// TODO implement
+			ret = C_NOT_IMPLEMENTED;
+			print_error("Warning: Unsupported V4L2 control type encountered: ctrl_id = %d, "
+					"name = '%s', type = %d",
+					v4l2_ctrl->id, v4l2_ctrl->name, v4l2_ctrl->type);
+			goto done;
 		default:
 			ret = C_PARSE_ERROR;
 			print_error("Invalid V4L2 control type encountered: ctrl_id = %d, "
@@ -1231,7 +1279,9 @@ static Control *create_control (Device *device, struct v4l2_queryctrl *v4l2_ctrl
 		else
 			ctrl->control.name		= strdup(UNKNOWN_CONTROL_NAME);
 		ctrl->control.type		= type;
-		ctrl->control.flags		= CC_CAN_READ | CC_CAN_WRITE;
+		ctrl->control.flags		= CC_CAN_READ;
+		if(!(v4l2_ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY))
+			ctrl->control.flags	|= CC_CAN_WRITE;
 		if(v4l2_ctrl->id >= V4L2_CID_PRIVATE_BASE)
 			ctrl->control.flags |= CC_IS_CUSTOM;
 		ctrl->control.def.value	= v4l2_ctrl->default_value;
@@ -1353,7 +1403,6 @@ static CResult refresh_control_list (Device *dev)
 	if(ioctl(v4l2_dev, VIDIOC_QUERYCTRL, &v4l2_ctrl) == 0) {
 		// The driver supports the V4L2_CTRL_FLAG_NEXT_CTRL flag, so go ahead with
 		// the advanced enumeration way.
-		// TODO handle V4L2_CTRL_FLAG_DISABLED
 
 		int r;
 		v4l2_ctrl.id = 0;
@@ -1390,24 +1439,28 @@ static CResult refresh_control_list (Device *dev)
 						"  of the V4L2_CTRL_FLAG_NEXT_CTRL flag. It does not return the next higher\n"
 						"  control ID if a control query fails. A workaround has been enabled.",
 						dev->v4l2_name);
+				goto next_control;
 			}
-			else {
-				current_ctrl = v4l2_ctrl.id;
-			}
+			current_ctrl = v4l2_ctrl.id;
+
+			// Skip failed and disabled controls
+			if(r || v4l2_ctrl.flags & V4L2_CTRL_FLAG_DISABLED)
+				goto next_control;
 
 			Control *ctrl = create_control(dev, &v4l2_ctrl, v4l2_dev, &ret);
 			if(ctrl == NULL) {
-				if(ret == C_PARSE_ERROR) {
-					print_error("Invalid V4L2 control encountered: ctrl_id = %d, "
-							"name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
+				if(ret == C_PARSE_ERROR || ret == C_NOT_IMPLEMENTED) {
+					print_error("Invalid or unsupported V4L2 control encountered: "
+							"ctrl_id = %d, name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
 					ret = C_SUCCESS;
-
-					v4l2_ctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
-					continue;
+					goto next_control;
 				}
-				goto done;
+				else {
+					goto done;
+				}
 			}
 
+next_control:
 			v4l2_ctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
 		}
 	}
@@ -1431,15 +1484,20 @@ static CResult refresh_control_list (Device *dev)
 			while(tries-- &&
 				  (r = ioctl(v4l2_dev, VIDIOC_QUERYCTRL, &v4l2_ctrl)) &&
 				  (errno == EIO || errno == EPIPE || errno == ETIMEDOUT));
+			// TODO TEST Workaround for issue with the bttv driver
+			//printf("v4l2_ctrl = { id = %d, type = %d, name = '%s', flags = %d }\n",
+			//		v4l2_ctrl.id, v4l2_ctrl.type, (char *)v4l2_ctrl.name, v4l2_ctrl.flags);
+			if(v4l2_ctrl.flags == V4L2_CTRL_FLAG_DISABLED && strcmp((char *)v4l2_ctrl.name, "42") == 0)
+				break;
 			if(r || v4l2_ctrl.flags & V4L2_CTRL_FLAG_DISABLED)
 				continue;
 #endif
 
 			Control *ctrl = create_control(dev, &v4l2_ctrl, v4l2_dev, &ret);
 			if(ctrl == NULL) {
-				if(ret == C_PARSE_ERROR) {
-					print_error("Invalid V4L2 control encountered: ctrl_id = %d, "
-							"name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
+				if(ret == C_PARSE_ERROR || ret == C_NOT_IMPLEMENTED) {
+					print_error("Invalid or unsupported V4L2 control encountered: "
+							"ctrl_id = %d, name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
 					ret = C_SUCCESS;
 					continue;
 				}
@@ -1460,14 +1518,19 @@ static CResult refresh_control_list (Device *dev)
 			if(r)
 				break;
 #endif
+			// TODO TEST Workaround for issue with the bttv driver
+			//printf("v4l2_ctrl = { id = %d, type = %d, name = '%s', flags = %d }\n",
+			//		v4l2_ctrl.id, v4l2_ctrl.type, (char *)v4l2_ctrl.name, v4l2_ctrl.flags);
+			if(v4l2_ctrl.flags == V4L2_CTRL_FLAG_DISABLED && strcmp((char *)v4l2_ctrl.name, "42") == 0)
+				break;
 			if(v4l2_ctrl.flags & V4L2_CTRL_FLAG_DISABLED)
 				continue;
 
 			Control *ctrl = create_control(dev, &v4l2_ctrl, v4l2_dev, &ret);
 			if(ctrl == NULL) {
-				if(ret == C_PARSE_ERROR) {
-					print_error("Invalid custom V4L2 control encountered: ctrl_id = %d, "
-							"name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
+				if(ret == C_PARSE_ERROR || ret == C_NOT_IMPLEMENTED) {
+					print_error("Invalid or unsupported custom V4L2 control encountered: "
+							"ctrl_id = %d, name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
 					ret = C_SUCCESS;
 					continue;
 				}
@@ -1814,6 +1877,17 @@ static CResult refresh_device_list (void)
 					// Invalidate the device immediately, so it gets deleted by the call
 					// to cleanup_device_list() below.
 					dev->valid = 0;
+
+					// If there was a V4L2 error reset the error code, so that device enumeration
+					// continues. This is necessary because V4L1 devices will let
+					// refresh_device_details fail as they don't understand VIDIOC_QUERYCAP.
+					if(ret == C_V4L2_ERROR) {
+						print_error(
+								"Warning: The driver behind device %s does not seem to support V4L2.",
+								dev->v4l2_name);
+						ret = C_SUCCESS;
+						continue;
+					}
 					break;
 				}
 				get_device_usb_info(dev, &dev->device.usb);
@@ -1868,7 +1942,7 @@ int open_v4l2_device(char *device_name)
 /**
  * Retrieves the value of a given V4L2 control.
  */
-static CResult read_v4l2_control(Device *device, Control *control, CControlValue *value)
+static CResult read_v4l2_control(Device *device, Control *control, CControlValue *value, CHandle hDevice)
 {
 	CResult ret = C_SUCCESS;
 
@@ -1882,6 +1956,7 @@ static CResult read_v4l2_control(Device *device, Control *control, CControlValue
 	struct v4l2_control v4l2_ctrl = { .id = control->v4l2_control };
 	if(ioctl(v4l2_dev, VIDIOC_G_CTRL, &v4l2_ctrl)) {
 		ret = C_V4L2_ERROR;
+		set_last_error(hDevice, errno);
 		goto done;
 	}
 
@@ -1897,7 +1972,7 @@ done:
 /**
  * Changes the value of a given V4L2 control.
  */
-static CResult write_v4l2_control(Device *device, Control *control, const CControlValue *value)
+static CResult write_v4l2_control(Device *device, Control *control, const CControlValue *value, CHandle hDevice)
 {
 	CResult ret = C_SUCCESS;
 
@@ -1912,8 +1987,10 @@ static CResult write_v4l2_control(Device *device, Control *control, const CContr
 		.id		= control->v4l2_control,
 		.value	= value->value
 	};
-	if(ioctl(v4l2_dev, VIDIOC_S_CTRL, &v4l2_ctrl))
+	if(ioctl(v4l2_dev, VIDIOC_S_CTRL, &v4l2_ctrl)) {
 		ret = C_V4L2_ERROR;
+		set_last_error(hDevice, errno);
+	}
 
 	close(v4l2_dev);
 	return ret;
@@ -2063,6 +2140,17 @@ static void close_handle(CHandle hDevice)
 	else {
 		GET_HANDLE(hDevice).open = 0;
 	}
+	GET_HANDLE(hDevice).last_system_error = 0;
+}
+
+
+/**
+ * Sets the last system error for the given handle.
+ */
+static void set_last_error(CHandle hDevice, int error)
+{
+	if(HANDLE_OPEN(hDevice))
+		GET_HANDLE(hDevice).last_system_error = error;
 }
 
 

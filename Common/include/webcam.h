@@ -280,6 +280,7 @@ typedef enum _CDynctrlFlags {
 typedef enum _CDynctrlMessageSeverity {
 	CD_SEVERITY_ERROR		= 2,		///< Error
 	CD_SEVERITY_WARNING		= 3,		///< Warning
+	CD_SEVERITY_INFO		= 4,		///< Informational
 
 } CDynctrlMessageSeverity;
 
@@ -588,7 +589,7 @@ typedef struct _CVersionNumber {
  * Statistics on the number of list elements that were processed.
  */
 typedef struct _CDynctrlInfoListStats {
-	/// Number of elements in the list processed successfully
+	/// Number of elements in the list that were processed successfully
 	unsigned int	successful;
 
 	/// Number of elements in the list that could not be processed successfully
@@ -691,6 +692,7 @@ extern CResult		c_add_control_mappings_from_file (const char *file_name, CDynctr
 #endif
 
 extern char			*c_get_error_text (CResult error);
+extern char			*c_get_handle_error_text (CHandle hDevice, CResult error);
 
 #ifdef __cplusplus
 }

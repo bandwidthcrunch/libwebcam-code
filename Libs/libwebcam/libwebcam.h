@@ -45,6 +45,11 @@
 /// Whether to use the V4L2_CTRL_FLAG_NEXT_CTRL flag when enumerating V4L2 controls
 #define	ENABLE_V4L2_ADVANCED_CONTROL_ENUMERATION
 
+/// Ignore EEXIST errors for the UVCIOC_CTRL_ADD and UVCIOC_CTRL_MAP ioctls for
+/// all but the first device. This is required if the driver uses global controls
+/// instead of per-device controls.
+#define DYNCTRL_IGNORE_EEXIST_AFTER_PASS1
+
 /// The maximum number (plus 1) of handles libwebcam supports
 #define	MAX_HANDLES						32
 
@@ -161,6 +166,8 @@ typedef struct _Handle {
 	Device			* device;
 	/// True if the handle is open (valid or invalid)
 	int				open;
+	/// The number of the last system error (e.g. a V4L2 return value)
+	int				last_system_error;
 	
 } Handle;
 

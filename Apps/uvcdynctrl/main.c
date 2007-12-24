@@ -36,21 +36,28 @@ static struct gengetopt_args_info args_info;
 
 
 static void
-print_error (const char *error, CResult res)
+print_handle_error (CHandle hDevice, const char *error, CResult res)
 {
 	if((int)res < 0) {
 		printf("ERROR: %s.\n", error);
 	}
 	else {
-		char *text = c_get_error_text(res);
+		char *text = c_get_handle_error_text(hDevice, res);
 		if(text) {
-			printf("ERROR: %s: %s (%d)\n", error, text, res);
+			printf("ERROR: %s: %s. (Code: %d)\n", error, text, res);
 			free(text);
 		}
 		else {
-			printf("ERROR: %s: Unknown error (%d)\n", error, res);
+			printf("ERROR: %s: Unknown error (Code: %d)\n", error, res);
 		}
 	}
+}
+
+
+static void
+print_error (const char *error, CResult res)
+{
+	print_handle_error(0, error, res);
 }
 
 
@@ -181,14 +188,14 @@ print_device (CDevice *device)
 
 
 static CResult
-list_controls (CHandle handle)
+list_controls (CHandle hDevice)
 {
 	CResult ret;
 	unsigned int count = 0;
 	CControl *controls = NULL;
 
 	// Retrieve the control list
-	ret = get_control_list(handle, &controls, &count);
+	ret = get_control_list(hDevice, &controls, &count);
 	if(ret) goto done;
 
 	if(count == 0) {
@@ -205,7 +212,207 @@ list_controls (CHandle handle)
 done:
 	if(controls) free(controls);
 	if(ret)
-		print_error("Unable to retrieve device list", ret);
+		print_handle_error(hDevice, "Unable to retrieve device list", ret);
+	return ret;
+}
+
+
+static CResult
+list_frame_intervals (CHandle hDevice, CPixelFormat *pixelformat, CFrameSize *framesize)
+{
+	CResult ret = C_SUCCESS;
+	CFrameInterval *intervals = NULL;
+	unsigned int size = 0, count = 0;
+
+	ret = c_enum_frame_intervals(hDevice, pixelformat, framesize, NULL, &size, &count);
+	if(ret == C_BUFFER_TOO_SMALL) {
+		intervals = (CFrameInterval *)malloc(size);
+		ret = c_enum_frame_intervals(hDevice, pixelformat, framesize, intervals, &size, &count);
+		if(ret) {
+			print_handle_error(hDevice, "Unable to enumerate frame intervals", ret);
+			goto done;
+		}
+
+		// Display all frame intervals
+		if(HAS_VERBOSE()) {
+			// Verbose: one line per interval
+			for(unsigned int i = 0; i < count; i++) {
+				CFrameInterval *fival = &intervals[i];
+
+				if(fival->type == CF_INTERVAL_DISCRETE) {
+					printf("    Frame interval: %u/%u [s]\n", fival->n, fival->d);
+				}
+				else if(fival->type == CF_INTERVAL_CONTINUOUS) {
+					printf("    Frame intervals: %u/%u - %u/%u [s] (continuous)\n",
+						fival->min_n, fival->min_d,
+						fival->max_n, fival->max_d
+					);
+				}
+				else if(fival->type == CF_INTERVAL_STEPWISE) {
+					printf("    Frame intervals: %u/%u - %u/%u [s] (in steps of %u/%u [s])\n",
+						fival->min_n, fival->min_d,
+						fival->max_n, fival->max_d,
+						fival->step_n, fival->step_d
+					);
+				}
+				else {
+					print_handle_error(hDevice, "Unrecognized frame interval type", -1);
+				}
+			}
+		}
+		else {
+			// Determine how concise we can be
+			int simple = 1;
+			for(unsigned int i = 0; i < count; i++) {
+				if(intervals[i].type != CF_INTERVAL_DISCRETE || intervals[i].n != 1) {
+					simple = 0;
+					break;
+				}
+			}
+
+			// Not verbose
+			if(simple) {
+				printf("    Frame rates: ");
+				for(unsigned int i = 0; i < count; i++) {
+					printf("%u%s", intervals[i].d, i < count - 1 ? ", " : "");
+				}
+				printf("\n");
+			}
+			else {
+				printf("    Frame intervals: ");
+				for(unsigned int i = 0; i < count; i++) {
+					CFrameInterval *fival = &intervals[i];
+
+					if(fival->type == CF_INTERVAL_DISCRETE) {
+						printf("%u/%u", fival->n, fival->d);
+					}
+					else if(fival->type == CF_INTERVAL_CONTINUOUS) {
+						printf("%u/%u - %u/%u",
+							fival->min_n, fival->min_d,
+							fival->max_n, fival->max_d
+						);
+					}
+					else if(fival->type == CF_INTERVAL_STEPWISE) {
+						printf("%u/%u - %u/%u (%u/%u)",
+							fival->min_n, fival->min_d,
+							fival->max_n, fival->max_d,
+							fival->step_n, fival->step_d
+						);
+					}
+					else {
+						printf("<?>");
+					}
+					if(i < count - 1)
+						printf(", ");
+				}
+				printf("\n");
+			}
+		}
+	}
+	else if(ret == C_SUCCESS) {
+		printf("No frame intervals found.\n");
+	}
+	else {
+		print_handle_error(hDevice, "No frame intervals found", ret);
+	}
+
+done:
+	if(intervals) free(intervals);
+	return ret;
+}
+
+
+static CResult
+list_frame_sizes (CHandle hDevice, CPixelFormat *pixelformat)
+{
+	CResult ret = C_SUCCESS;
+	CFrameSize *sizes = NULL;
+	unsigned int size = 0, count = 0;
+
+	ret = c_enum_frame_sizes(hDevice, pixelformat, NULL, &size, &count);
+	if(ret == C_BUFFER_TOO_SMALL) {
+		sizes = (CFrameSize *)malloc(size);
+		ret = c_enum_frame_sizes(hDevice, pixelformat, sizes, &size, &count);
+		if(ret) {
+			print_handle_error(hDevice, "Unable to enumerate frame sizes", ret);
+			goto done;
+		}
+
+		for(unsigned int i = 0; i < count; i++) {
+			CFrameSize *fsize = &sizes[i];
+
+			if(fsize->type == CF_SIZE_DISCRETE) {
+				printf("  Frame size: %ux%u\n", fsize->width, fsize->height);
+				list_frame_intervals(hDevice, pixelformat, fsize);
+			}
+			else if(fsize->type == CF_SIZE_CONTINUOUS) {
+				printf("  Frame sizes: %ux%u - %ux%u (continuous)\n"
+					"  Will not display frame intervals.\n",
+					fsize->min_width, fsize->min_height,
+					fsize->max_width, fsize->max_height
+				);
+			}
+			else if(fsize->type == CF_SIZE_STEPWISE) {
+				printf("  Frame sizes: %ux%u - %ux%u (in steps of width = %u, height = %u)\n"
+					"  Will not display frame intervals.\n",
+					fsize->min_width, fsize->min_height,
+					fsize->max_width, fsize->max_height,
+					fsize->step_width, fsize->step_height
+				);
+			}
+			else {
+				print_handle_error(hDevice, "Unrecognized frame size type", -1);
+			}
+		}
+	}
+	else if(ret == C_SUCCESS) {
+		printf("No frame sizes found.\n");
+	}
+	else {
+		print_handle_error(hDevice, "No frame sizes found", ret);
+	}
+
+done:
+	if(sizes) free(sizes);
+	return ret;
+}
+
+
+static CResult
+list_frame_formats (CHandle hDevice)
+{
+	CResult ret = C_SUCCESS;
+	CPixelFormat *formats = NULL;
+	unsigned int size = 0, count = 0;
+
+	ret = c_enum_pixel_formats(hDevice, NULL, &size, &count);
+	if(ret == C_BUFFER_TOO_SMALL) {
+		formats = (CPixelFormat *)malloc(size);
+		ret = c_enum_pixel_formats(hDevice, formats, &size, &count);
+		if(ret) {
+			print_handle_error(hDevice, "Unable to enumerate pixel formats", ret);
+			goto done;
+		}
+
+		for(unsigned int i = 0; i < count; i++) {
+			CPixelFormat *format = &formats[i];
+			printf("Pixel format: %s (%s%s%s)\n",
+				format->fourcc, format->name,
+				format->mimeType ? "; MIME type: " : "",
+				format->mimeType ? format->mimeType : ""
+			);
+			list_frame_sizes(hDevice, format);
+		}
+	}
+	else if(ret == C_SUCCESS) {
+		printf("No pixel formats found.\n");
+	}
+	else {
+		print_handle_error(hDevice, "No pixel formats found", ret);
+	}
+
+done:
+	if(formats) free(formats);
 	return ret;
 }
 
@@ -280,22 +487,8 @@ main (int argc, char **argv)
 		res = list_devices();
 		goto done;
 	}
-
-	// Open the device
-	handle = c_open_device(args_info.device_arg);
-	if(!handle) {
-		print_error("Unable to open device", -1);
-		res = C_INVALID_DEVICE;
-		goto done;
-	}
-
-	// List controls
-	if(args_info.clist_given) {
-		printf("Listing available controls for device %s:\n", args_info.device_arg);
-		res = list_controls(handle);
-	}
 	// Import dynamic controls from XML file
-	if(args_info.import_given) {
+	else if(args_info.import_given) {
 		CDynctrlInfo info = { 0 };
 		info.flags = CD_REPORT_ERRORS;
 		if(HAS_VERBOSE())
@@ -335,6 +528,7 @@ main (int argc, char **argv)
 				switch(msg->severity) {
 					case CD_SEVERITY_ERROR:		severity = "error";		break;
 					case CD_SEVERITY_WARNING:	severity = "warning";	break;
+					case CD_SEVERITY_INFO:		severity = "info";		break;
 				}
 				if(msg->line && msg->col) {
 					printf("%s:%d:%d: %s: %s\n", args_info.import_arg, msg->line, msg->col, severity, msg->text);
@@ -348,8 +542,43 @@ main (int argc, char **argv)
 			}
 		}
 
+		// Print processing statistics if we're in verbose mode
+		if(HAS_VERBOSE()) {
+			printf(
+				"Processing statistics:\n"
+				"  %u constants processed (%u failed, %u successful)\n"
+				"  %u controls processed (%u failed, %u successful)\n"
+				"  %u mappings processed (%u failed, %u successful)\n",
+				info.stats.constants.successful + info.stats.constants.failed,
+				info.stats.constants.successful, info.stats.constants.failed,
+				info.stats.controls.successful + info.stats.controls.failed,
+				info.stats.controls.successful, info.stats.controls.failed,
+				info.stats.mappings.successful + info.stats.mappings.failed,
+				info.stats.mappings.successful, info.stats.mappings.failed
+			);
+		}
+
 		if(info.messages)
 			free(info.messages);
+		goto done;
+	}
+	// Open the device
+	handle = c_open_device(args_info.device_arg);
+	if(!handle) {
+		print_error("Unable to open device", -1);
+		res = C_INVALID_DEVICE;
+		goto done;
+	}
+
+	// List frame formats
+	if(args_info.formats_given) {
+		printf("Listing available frame formats for device %s:\n", args_info.device_arg);
+		res = list_frame_formats(handle);
+	}
+	// List controls
+	else if(args_info.clist_given) {
+		printf("Listing available controls for device %s:\n", args_info.device_arg);
+		res = list_controls(handle);
 	}
 	// Retrieve control value
 	else if(args_info.get_given) {
@@ -358,14 +587,14 @@ main (int argc, char **argv)
 		// Resolve the control Id
 		CControlId controlId = get_control_id(handle, args_info.get_arg);
 		if(!controlId) {
-			print_error("Unknown control specified", -1);
+			print_handle_error(handle, "Unknown control specified", -1);
 			goto done;
 		}
 
 		// Retrieve the control value
 		res = c_get_control(handle, controlId, &value);
 		if(res) {
-			print_error("Unable to retrieve control value", res);
+			print_handle_error(handle, "Unable to retrieve control value", res);
 			goto done;
 		}
 		printf("%d\n", value.value);
@@ -386,14 +615,14 @@ main (int argc, char **argv)
 		// Resolve the control Id
 		CControlId controlId = get_control_id(handle, args_info.set_arg);
 		if(!controlId) {
-			print_error("Unknown control specified", -1);
+			print_handle_error(handle, "Unknown control specified", -1);
 			goto done;
 		}
 
 		// Set the new control value
 		res = c_set_control(handle, controlId, &value);
 		if(res) {
-			print_error("Unable to set new control value", res);
+			print_handle_error(handle, "Unable to set new control value", res);
 			goto done;
 		}
 	}
