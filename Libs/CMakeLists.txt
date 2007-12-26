@@ -1,1 +1,1 @@
-add_subdirectory (libwebcam)
+ADD_SUBDIRECTORY (libwebcam)

@@ -1,1 +1,1 @@
-add_subdirectory (uvcdynctrl)
+ADD_SUBDIRECTORY (uvcdynctrl)
