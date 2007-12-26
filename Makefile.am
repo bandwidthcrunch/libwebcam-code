@@ -1,1 +1,0 @@
-SUBDIRS = Libs Apps
