@@ -35,7 +35,26 @@ TARGET_LINK_LIBRARIES (uvcdynctrl webcam)
 # INSTALLATION
 #
 
+# Tool
 INSTALL (
 	TARGETS		uvcdynctrl
 	RUNTIME DESTINATION	bin
+)
+
+# udev rules, script, and data
+# Default permissions for DIRECTORY files: rw-r--r--
+# Default permissions for PROGRAMS files:  rwxr-xr-x
+INSTALL (
+	DIRECTORY	udev/rules/
+	DESTINATION /etc/udev/rules.d
+	PATTERN ".svn" EXCLUDE
+)
+INSTALL (
+	PROGRAMS	udev/scripts/uvcdynctrl
+	DESTINATION	/lib/udev
+)
+INSTALL (
+	DIRECTORY	data
+	DESTINATION /etc/udev
+	PATTERN ".svn" EXCLUDE
 )
