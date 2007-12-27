@@ -4,6 +4,8 @@
 
 ADD_LIBRARY (webcam SHARED libwebcam.c dynctrl.c)
 
+SET_TARGET_PROPERTIES (webcam PROPERTIES VERSION 0.1.1)
+
 
 #
 # COMPILATION AND LINKING

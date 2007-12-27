@@ -1,8 +1,10 @@
 # GNU Gengetopt input file for uvcdynctrl
 
 # Program information
+# Note that we don't set the version here. We retrieve the version from
+# the VERSION constant in config.h.
 package "uvcdynctrl"
-version "0.2"
+#version "0.0"
 purpose "Manage dynamic controls in uvcvideo"
 
 # Action options (device independent)
