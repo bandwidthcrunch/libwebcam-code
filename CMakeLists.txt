@@ -1,11 +1,14 @@
 #
 # GENERAL
 #
+
+# Require CMake 2.4.4 because of FindLibXml2.cmake
+CMAKE_MINIMUM_REQUIRED (VERSION 2.4.4)
+
 # The name of our project is "LIBWEBCAM".
 # CMakeLists files in this project can refer to the root source directory of
 # the project as ${LIBWEBCAM_SOURCE_DIR} and to the root binary directory of
 # the project as ${LIBWEBCAM_BINARY_DIR}.
-
 PROJECT (LIBWEBCAM)
 
 
