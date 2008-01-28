@@ -39,6 +39,15 @@ QuickCam Team
 
 Change log:
 
+0.2: 
+- Experimental support for udev (support script and rules).
+- Added a new option -f or --formats to list a device's frame format list (pixel formats, frame sizes, and frame intervals).
+- Make use of the improved error message reporting in libwebcam.
+- Added support for displaying processing statistics in verbose mode.
+- Support for the new informational messages (dynctrl).
+- Added a hint to the quick help on how to set negative control values.
+- Fix: Import (-i) no longer needs a valid device to be specified (or the default video0 to be present).
+
 0.1: Initial release
 
 
@@ -62,7 +71,7 @@ QuickCam Team discussion forums
 Copyright and license
 ---------------------
 
-Copyright (c) 2006-2007 Logitech.
+Copyright (c) 2006-2008 Logitech.
 
 uvcdynctrl is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

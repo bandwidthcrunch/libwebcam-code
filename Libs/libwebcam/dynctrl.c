@@ -151,6 +151,8 @@ typedef struct _ParseContext {
 	iconv_t			cd;
 	/// List of constants parsed from the @c constants node
 	Constant		* constants;
+	/// Handle to the libwebcam device
+	CHandle			handle;
 	/// Handle to the V4L2 device that is used to add the dynamic controls
 	int				v4l2_handle;
 	/// List of controls parsed from the @c devices nodes
@@ -1110,7 +1112,8 @@ static CResult process_mapping (const xmlNode *node_mapping, ParseContext *ctx)
 		)
 	{
 		add_error(ctx,
-			"unable to map '%s' control. ioctl(UVCIOC_CTRL_MAP) failed with return value %d (error %d: %s)",
+			"%s: unable to map '%s' control. ioctl(UVCIOC_CTRL_MAP) failed with return value %d (error %d: %s)",
+			GET_HANDLE(ctx->handle).device->v4l2_name,
 			mapping_info.name, v4l2_ret, errno, strerror(errno));
 		return C_V4L2_ERROR;
 	}
@@ -1255,8 +1258,9 @@ static CResult process_control (xmlNode *node_control, ParseContext *ctx)
 		)
 	{
 		add_error(ctx,
-			"unable to add control with GUID {"GUID_FORMAT"} and selector %d. "
+			"%s: unable to add control with GUID {"GUID_FORMAT"} and selector %d. "
 			"ioctl(UVCIOC_CTRL_ADD) failed with return value %d (error %d: %s)",
+			GET_HANDLE(ctx->handle).device->v4l2_name,
 			GUID_ARGS(xu_control->info.entity), xu_control->info.selector,
 			v4l2_ret, errno, strerror(errno));
 		ret = C_V4L2_ERROR;
@@ -1547,7 +1551,6 @@ static CResult device_supports_dynctrl(ParseContext *ctx)
 /** 
  * Adds controls and control mappings contained in the given XML tree to the UVC driver.
  *
- * @param hDevice	device handle to be used to add the controls and control mappings
  * @param xml_doc	XML document tree corresponding to the dynctrl format
  * @param ctx		current parse context
  *
@@ -1555,15 +1558,15 @@ static CResult device_supports_dynctrl(ParseContext *ctx)
  * 		- #C_INVALID_DEVICE if no devices are available
  * 		- #C_SUCCESS if adding the controls and control mappings was successful
  */
-CResult add_control_mappings (CHandle hDevice, xmlDoc *xml_doc, ParseContext *ctx)
+CResult add_control_mappings (xmlDoc *xml_doc, ParseContext *ctx)
 {
 	CResult ret = C_SUCCESS;
 
-	assert(HANDLE_OPEN(hDevice));
-	assert(HANDLE_VALID(hDevice));
+	assert(HANDLE_OPEN(ctx->handle));
+	assert(HANDLE_VALID(ctx->handle));
 
 	// Open the V4L2 device
-	ctx->v4l2_handle = open_v4l2_device(GET_HANDLE(hDevice).device->v4l2_name);
+	ctx->v4l2_handle = open_v4l2_device(GET_HANDLE(ctx->handle).device->v4l2_name);
 	if(!ctx->v4l2_handle) {
 		ret = C_INVALID_DEVICE;
 		goto done;
@@ -1673,8 +1676,8 @@ CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *i
 		}
 
 		// Create a device handle
-		CHandle hDevice = c_open_device(device->shortName);
-		if(!hDevice) {
+		ctx->handle = c_open_device(device->shortName);
+		if(!ctx->handle) {
 			add_error(ctx,
 				"device '%s' skipped because it could not be opened.",
 				device->shortName
@@ -1683,7 +1686,7 @@ CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *i
 		}
 
 		// Add the parsed control mappings to this device
-		ret = add_control_mappings(hDevice, xml_doc, ctx);
+		ret = add_control_mappings(xml_doc, ctx);
 		if(ret == C_SUCCESS) {
 			successful_devices++;
 		}
@@ -1695,7 +1698,7 @@ CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *i
 			);
 		}
 		else {
-			char *error = c_get_handle_error_text(hDevice, ret);
+			char *error = c_get_handle_error_text(ctx->handle, ret);
 			assert(error);
 			add_error(ctx,
 				"device '%s' was not processed successfully: %s. (Code: %d)",
@@ -1705,7 +1708,8 @@ CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *i
 		}
 
 		// Close the device handle
-		c_close_device(hDevice);
+		c_close_device(ctx->handle);
+		ctx->handle = 0;
 	}
 	if(successful_devices == 0)
 		ret = C_INVALID_DEVICE;

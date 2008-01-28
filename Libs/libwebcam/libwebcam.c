@@ -6,20 +6,20 @@
  */
 
 /*
- * Copyright (c) 2006-2007 Logitech.
+ * Copyright (c) 2006-2008 Logitech.
  *
  * This file is part of libwebcam.
- * 
+ *
  * libwebcam is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * libwebcam is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public License
  * along with libwebcam.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -107,7 +107,7 @@ CHandle c_open_device (const char *device_name)
 {
 	CHandle handle;
 	const char *v4l2_name;
-	
+
 	if(device_name == NULL || !initialized) {
 		print_error("Unable to open device. No name given or library not initialized.");
 		return 0;
@@ -177,7 +177,7 @@ void c_close_device (CHandle hDevice)
 CResult c_enum_devices (CDevice *devices, unsigned int *size, unsigned int *count)
 {
 	CResult ret = C_SUCCESS;
-	
+
 	if(!initialized)
 		return C_INIT_ERROR;
 	if(size == NULL)
@@ -186,7 +186,7 @@ CResult c_enum_devices (CDevice *devices, unsigned int *size, unsigned int *coun
 	// Refresh the internal device list
 	ret = refresh_device_list();
 	if(ret) return ret;
-	
+
 	if(lock_mutex(&device_list.mutex))
 		return C_SYNC_ERROR;
 
@@ -250,7 +250,7 @@ done:
  * that V4L2 uses internally. There is no guarantee, however, that this does not
  * change in the future, so applications must be prepared to allocate more memory
  * if indicated by a return value of #C_BUFFER_TOO_SMALL.
- * 
+ *
  * @param hDevice		a handle obtained from c_open_device()
  * @param device_name	a device name as accepted by c_open_device()
  * @param info			a pointer to a buffer to receive the device information
@@ -268,12 +268,12 @@ done:
 CResult c_get_device_info (CHandle hDevice, const char *device_name, CDevice *info, unsigned int *size)
 {
 	CDevice *info_src;
-	
+
 	if(!initialized)
 		return C_INIT_ERROR;
 	if(size == NULL)
 		return C_INVALID_ARG;
-	
+
 	// Look for the device
 	if(hDevice) {				// By device handle
 		if(!HANDLE_OPEN(hDevice))
@@ -455,7 +455,7 @@ done:
 		if(elem->format.mimeType) free(elem->format.mimeType);
 		if(elem->format.name) free(elem->format.name);
 		free(elem);
-		elem = next;		
+		elem = next;
 	}
 	return ret;
 }
@@ -468,7 +468,7 @@ done:
  * the \a size parameter is modified to contain the required buffer size.
  *
  * A list of pixel formats can be obtained from c_enum_pixel_formats().
- * 
+ *
  * @param 	hDevice		a handle obtained from c_open_device()
  * @param	pixelformat	the pixel format for which the frame sizes should be
  * 						enumerated
@@ -605,7 +605,7 @@ done:
 	while(elem) {
 		FrameSize *next = elem->next;
 		free(elem);
-		elem = next;		
+		elem = next;
 	}
 	return ret;
 }
@@ -620,7 +620,7 @@ done:
  * A list of pixel formats can be obtained from c_enum_pixel_formats(). In a
  * similar manner the list of supported frame sizes for each pixel format can be
  * obtained from c_enum_frame_sizes().
- * 
+ *
  * @param 	hDevice		a handle obtained from c_open_device()
  * @param	pixelformat	the pixel format for which the frame intervals should be
  * 						enumerated
@@ -662,7 +662,7 @@ CResult c_enum_frame_intervals (CHandle hDevice, const CPixelFormat *pixelformat
 	Device *device = GET_HANDLE(hDevice).device;
 	if(size == NULL || pixelformat == NULL || framesize == NULL)
 		return C_INVALID_ARG;
-	
+
 	// The frame size must be discrete because V4L2's VIDIOC_ENUM_FRAMEINTERVALS function
 	// only accepts a single width and height.
 	if(framesize->type != CF_SIZE_DISCRETE)
@@ -768,7 +768,7 @@ done:
 	while(elem) {
 		FrameInterval *next = elem->next;
 		free(elem);
-		elem = next;		
+		elem = next;
 	}
 	return ret;
 }
@@ -845,7 +845,7 @@ CResult c_enum_controls (CHandle hDevice, CControl *controls, unsigned int *size
 	while(elem) {
 		// Copy the simple attributes
 		memcpy(current, &elem->control, sizeof(elem->control));
-		
+
 		// Copy the name
 		unsigned int name_length = strlen(elem->control.name);
 		current->name = (char *)controls + names_offset;
@@ -901,7 +901,7 @@ done:
 CResult c_set_control (CHandle hDevice, CControlId control_id, const CControlValue *value)
 {
 	CResult ret = C_SUCCESS;
-	
+
 	// Check the given handle and arguments
 	if(!initialized)
 		return C_INIT_ERROR;
@@ -930,7 +930,7 @@ CResult c_set_control (CHandle hDevice, CControlId control_id, const CControlVal
 		assert(0);
 		return C_INVALID_ARG;
 	}
-	
+
 	return ret;
 }
 
@@ -954,7 +954,7 @@ CResult c_set_control (CHandle hDevice, CControlId control_id, const CControlVal
 CResult c_get_control (CHandle hDevice, CControlId control_id, CControlValue *value)
 {
 	CResult ret = C_SUCCESS;
-	
+
 	// Check the given handle and arguments
 	if(!initialized)
 		return C_INIT_ERROR;
@@ -983,7 +983,7 @@ CResult c_get_control (CHandle hDevice, CControlId control_id, CControlValue *va
 		assert(0);
 		return C_INVALID_ARG;
 	}
-	
+
 	return ret;
 }
 
@@ -1196,7 +1196,7 @@ static CResult create_control_choices (Control *ctrl, struct v4l2_queryctrl *v4l
 		ret = C_NO_MEMORY;
 		goto done;
 	}
-	
+
 	// Query the menu items of the given control and transform them
 	// into CControlChoice.
 	struct v4l2_querymenu v4l2_menu = { .id = v4l2_ctrl->id };
@@ -1228,7 +1228,7 @@ done:
 
 /**
  * Create a libwebcam control from a V4L2 control.
- * 
+ *
  * If necessary, further information is requested by this function, e.g. in the case
  * of a choice control.
  *
@@ -1268,7 +1268,7 @@ static Control *create_control (Device *device, struct v4l2_queryctrl *v4l2_ctrl
 					v4l2_ctrl->id, v4l2_ctrl->name, v4l2_ctrl->type);
 			goto done;
 	}
-	
+
 	ctrl = (Control *)malloc(sizeof(*ctrl));
 	if(ctrl) {
 		memset(ctrl, 0, sizeof(*ctrl));
@@ -1296,7 +1296,7 @@ static Control *create_control (Device *device, struct v4l2_queryctrl *v4l2_ctrl
 			ctrl->control.max.value		= v4l2_ctrl->maximum;
 			ctrl->control.step.value	= v4l2_ctrl->step;
 		}
-		
+
 		// Add the new control to the control list of the given device
 		ctrl->next = device->controls.first;
 		device->controls.first = ctrl;
@@ -1473,8 +1473,14 @@ next_control:
 		// It won't be possible to enumerate controls with non-contiguous IDs but in
 		// this case the driver probably doesn't implement any.
 
-		// Enumerate default V4L2 controls
-		for(v4l2_ctrl.id = V4L2_CID_BASE; v4l2_ctrl.id < V4L2_CID_LASTP1; v4l2_ctrl.id++) {
+		// Enumerate default V4L2 controls.
+		// We use a separate variable instead of v4l2_ctrl.id for the loop counter because
+		// some drivers (bttv) simply return a fake control with ID 0 when the device
+		// doesn't support a control in the [V4L2_CID_BASE, V4L2_CID_LASTP1) interval,
+		// thereby overwriting our loop variable and causing us to restart from 0.
+		int current_ctrl;
+		for(current_ctrl = V4L2_CID_BASE; current_ctrl < V4L2_CID_LASTP1; current_ctrl++) {
+			v4l2_ctrl.id = current_ctrl;
 #ifndef CONTROL_IO_ERROR_RETRIES
 			if(ioctl(v4l2_dev, VIDIOC_QUERYCTRL, &v4l2_ctrl) ||
 			   v4l2_ctrl.flags & V4L2_CTRL_FLAG_DISABLED)
@@ -1484,11 +1490,6 @@ next_control:
 			while(tries-- &&
 				  (r = ioctl(v4l2_dev, VIDIOC_QUERYCTRL, &v4l2_ctrl)) &&
 				  (errno == EIO || errno == EPIPE || errno == ETIMEDOUT));
-			// TODO TEST Workaround for issue with the bttv driver
-			//printf("v4l2_ctrl = { id = %d, type = %d, name = '%s', flags = %d }\n",
-			//		v4l2_ctrl.id, v4l2_ctrl.type, (char *)v4l2_ctrl.name, v4l2_ctrl.flags);
-			if(v4l2_ctrl.flags == V4L2_CTRL_FLAG_DISABLED && strcmp((char *)v4l2_ctrl.name, "42") == 0)
-				break;
 			if(r || v4l2_ctrl.flags & V4L2_CTRL_FLAG_DISABLED)
 				continue;
 #endif
@@ -1518,11 +1519,6 @@ next_control:
 			if(r)
 				break;
 #endif
-			// TODO TEST Workaround for issue with the bttv driver
-			//printf("v4l2_ctrl = { id = %d, type = %d, name = '%s', flags = %d }\n",
-			//		v4l2_ctrl.id, v4l2_ctrl.type, (char *)v4l2_ctrl.name, v4l2_ctrl.flags);
-			if(v4l2_ctrl.flags == V4L2_CTRL_FLAG_DISABLED && strcmp((char *)v4l2_ctrl.name, "42") == 0)
-				break;
 			if(v4l2_ctrl.flags & V4L2_CTRL_FLAG_DISABLED)
 				continue;
 
@@ -1542,7 +1538,7 @@ next_control:
 done:
 	unlock_mutex(&dev->controls.mutex);
 	close(v4l2_dev);
-	
+
 	return ret;
 }
 
@@ -1578,7 +1574,7 @@ static CResult refresh_device_details (Device *dev)
 	}
 
 	close(v4l2_dev);
-	
+
 	return ret;
 }
 
@@ -1706,7 +1702,7 @@ static Device *create_device (char *name)
 		device_list.first = dev;
 		device_list.count++;
 	}
-	
+
 	return dev;
 }
 
@@ -1734,7 +1730,7 @@ static void delete_device (Device *dev)
 
 	// Free all controls of this device
 	clear_control_list(dev);
-	
+
 	if(dev->device.shortName)
 		free(dev->device.shortName);
 	if(dev->device.name && dev->device.name != dev->v4l2_name)
@@ -1750,7 +1746,7 @@ static void delete_device (Device *dev)
 /**
  * Mark all entries in the device list as invalid. This allows the cleanup_device_list()
  * function to be used to clear the entire device list.
- * 
+ *
  * Note: The device list should be locked before calling this function.
  */
 static void invalidate_device_list (void)
@@ -1859,7 +1855,7 @@ static CResult refresh_device_list (void)
 			// Ignore non-video devices
 			if(strstr(dir_entry->d_name, "video") != dir_entry->d_name)
 				continue;
-			
+
 			Device *dev = find_device_by_name(dir_entry->d_name);
 			if(dev) {
 				dev->valid = 1;
@@ -1928,7 +1924,7 @@ int open_v4l2_device(char *device_name)
 
 	if(device_name == NULL)
 		return C_INVALID_ARG;
-	
+
 	dev_node = (char *)malloc(5 + strlen(device_name) + 1);
 	if(!dev_node)
 		return 0;
@@ -2168,7 +2164,7 @@ static void set_last_error(CHandle hDevice, int error)
 CResult c_init(void)
 {
 	CResult ret = C_SUCCESS;
-	
+
 	// Don't reinitialize
 	if(initialized)
 		return C_SUCCESS;

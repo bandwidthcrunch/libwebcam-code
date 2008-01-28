@@ -463,6 +463,84 @@ done:
 }
 
 
+static CResult
+add_control_mappings(const char *filename)
+{
+	CDynctrlInfo info = { 0 };
+	info.flags = CD_REPORT_ERRORS;
+	if(HAS_VERBOSE())
+		info.flags |= CD_RETRIEVE_META_INFO;
+
+	printf("Importing dynamic controls from file %s.\n", filename);
+	CResult res = c_add_control_mappings_from_file(filename, &info);
+
+	// Print meta information if we're in verbose mode
+	if(HAS_VERBOSE()) {
+		printf(
+			"Available meta information:\n"
+			"  File format: %d.%d\n"
+			"  Author:      %s\n"
+			"  Contact:     %s\n"
+			"  Copyright:   %s\n"
+			"  Revision:    %d.%d\n",
+			info.meta.version.major, info.meta.version.minor,
+			info.meta.author    ? info.meta.author    : "(unknown)",
+			info.meta.contact   ? info.meta.contact   : "(unknown)",
+			info.meta.copyright ? info.meta.copyright : "(unknown)",
+			info.meta.revision.major, info.meta.revision.minor
+		);
+		if(info.meta.author)
+			free(info.meta.author);
+		if(info.meta.contact)
+			free(info.meta.contact);
+		if(info.meta.author)
+			free(info.meta.copyright);
+	}
+
+	// Print errors
+	if(info.message_count) {
+		for(int i = 0; i < info.message_count; i++) {
+			CDynctrlMessage *msg = &info.messages[i];
+			const char *severity = "message";
+			switch(msg->severity) {
+				case CD_SEVERITY_ERROR:		severity = "error";		break;
+				case CD_SEVERITY_WARNING:	severity = "warning";	break;
+				case CD_SEVERITY_INFO:		severity = "info";		break;
+			}
+			if(msg->line && msg->col) {
+				printf("%s:%d:%d: %s: %s\n", filename, msg->line, msg->col, severity, msg->text);
+			}
+			else if(msg->line) {
+				printf("%s:%d: %s: %s\n", filename, msg->line, severity, msg->text);
+			}
+			else {
+				printf("%s: %s: %s\n", filename, severity, msg->text);
+			}
+		}
+	}
+
+	// Print processing statistics if we're in verbose mode
+	if(HAS_VERBOSE()) {
+		printf(
+			"Processing statistics:\n"
+			"  %u constants processed (%u failed, %u successful)\n"
+			"  %u controls processed (%u failed, %u successful)\n"
+			"  %u mappings processed (%u failed, %u successful)\n",
+			info.stats.constants.successful + info.stats.constants.failed,
+			info.stats.constants.successful, info.stats.constants.failed,
+			info.stats.controls.successful + info.stats.controls.failed,
+			info.stats.controls.successful, info.stats.controls.failed,
+			info.stats.mappings.successful + info.stats.mappings.failed,
+			info.stats.mappings.successful, info.stats.mappings.failed
+		);
+	}
+
+	if(info.messages)
+		free(info.messages);
+	return res;
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -489,79 +567,10 @@ main (int argc, char **argv)
 	}
 	// Import dynamic controls from XML file
 	else if(args_info.import_given) {
-		CDynctrlInfo info = { 0 };
-		info.flags = CD_REPORT_ERRORS;
-		if(HAS_VERBOSE())
-			info.flags |= CD_RETRIEVE_META_INFO;
-
-		printf("Importing dynamic controls from file %s.\n", args_info.import_arg);
-		res = c_add_control_mappings_from_file(args_info.import_arg, &info);
-
-		// Print meta information if we're in verbose mode
-		if(HAS_VERBOSE()) {
-			printf(
-				"Available meta information:\n"
-				"  File format: %d.%d\n"
-				"  Author:      %s\n"
-				"  Contact:     %s\n"
-				"  Copyright:   %s\n"
-				"  Revision:    %d.%d\n",
-				info.meta.version.major, info.meta.version.minor,
-				info.meta.author    ? info.meta.author    : "(unknown)",
-				info.meta.contact   ? info.meta.contact   : "(unknown)",
-				info.meta.copyright ? info.meta.copyright : "(unknown)",
-				info.meta.revision.major, info.meta.revision.minor
-			);
-			if(info.meta.author)
-				free(info.meta.author);
-			if(info.meta.contact)
-				free(info.meta.contact);
-			if(info.meta.author)
-				free(info.meta.copyright);
-		}
-
-		// Print errors
-		if(info.message_count) {
-			for(int i = 0; i < info.message_count; i++) {
-				CDynctrlMessage *msg = &info.messages[i];
-				const char *severity = "message";
-				switch(msg->severity) {
-					case CD_SEVERITY_ERROR:		severity = "error";		break;
-					case CD_SEVERITY_WARNING:	severity = "warning";	break;
-					case CD_SEVERITY_INFO:		severity = "info";		break;
-				}
-				if(msg->line && msg->col) {
-					printf("%s:%d:%d: %s: %s\n", args_info.import_arg, msg->line, msg->col, severity, msg->text);
-				}
-				else if(msg->line) {
-					printf("%s:%d: %s: %s\n", args_info.import_arg, msg->line, severity, msg->text);
-				}
-				else {
-					printf("%s: %s: %s\n", args_info.import_arg, severity, msg->text);
-				}
-			}
-		}
-
-		// Print processing statistics if we're in verbose mode
-		if(HAS_VERBOSE()) {
-			printf(
-				"Processing statistics:\n"
-				"  %u constants processed (%u failed, %u successful)\n"
-				"  %u controls processed (%u failed, %u successful)\n"
-				"  %u mappings processed (%u failed, %u successful)\n",
-				info.stats.constants.successful + info.stats.constants.failed,
-				info.stats.constants.successful, info.stats.constants.failed,
-				info.stats.controls.successful + info.stats.controls.failed,
-				info.stats.controls.successful, info.stats.controls.failed,
-				info.stats.mappings.successful + info.stats.mappings.failed,
-				info.stats.mappings.successful, info.stats.mappings.failed
-			);
-		}
-
-		if(info.messages)
-			free(info.messages);
+		res = add_control_mappings(args_info.import_arg);
 		goto done;
 	}
+
 	// Open the device
 	handle = c_open_device(args_info.device_arg);
 	if(!handle) {
