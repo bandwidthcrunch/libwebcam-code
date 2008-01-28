@@ -28,6 +28,33 @@ functions that illustrate the power of libwebcam. Check out the built-in
 command line help for details.
 
 
+udev support
+------------
+
+The uvcdynctrl package contains *experimental* udev support, i.e. a udev rule
+file and a helper script that calls uvcdynctrl to import the appropriate XML
+file when a camera is connected.
+
+If you run "make install" as root, the following udev-related files will be
+installed:
+
+  /etc/udev/rules.d/80-uvcdynctrl.rules (rule for V4L devices)
+  /lib/udev/uvcdynctrl (helper script to launch uvcdynctrl)
+  /etc/udev/data/046d/logitech.xml (dynamic control configuration for Logitech
+                                   devices)
+
+These paths are hardcoded in Apps/uvcdynctrl/CMakeLists.txt and have only been
+tested on Ubuntu. If your distribution uses different paths, you need to make
+changes to that file before running the installation.
+
+Please send us feedback (preferrably through the QuickCam Team forum, see the
+main README file for the link) about the udev functionality, especially on
+non-Ubuntu systems.
+
+If you want to debug the uvcdynctrl udev script, you can find some basic debug
+output in /tmp/uvcdynctrl-udev.log.
+
+
 Change log
 ----------
 

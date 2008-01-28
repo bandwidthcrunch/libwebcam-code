@@ -6,7 +6,7 @@
 ###############################################################################
 
 xmlpath=/etc/udev/data
-logfile=/tmp/udev.log
+logfile=/tmp/uvcdynctrl-udev.log
 #logfile=/dev/null
 uvcdynctrlpath=uvcdynctrl
 

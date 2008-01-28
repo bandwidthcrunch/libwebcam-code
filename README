@@ -29,13 +29,9 @@ Building
 External dependencies:
 - uvcvideo (Linux UVC driver)
 - libxml2
-- gengetopt
+- gengetopt (optional)
 
-Important note on the uvcvideo and gengetopt dependencies:
-
-The configure script does not currently check for the existence of gengetopt.
-Make sure you install it before running 'make', otherwise your build will fail.
-This may be fixed in a future release.
+Important note on the uvcvideo dependency:
 
 Unless the USE_UVCVIDEO constant is disabled (it is enabled by default),
 libwebcam needs two header files from the Linux UVC driver. If you don't
@@ -59,6 +55,10 @@ wget http://svn.berlios.de/svnroot/repos/linux-uvc/linux-uvc/trunk/uvc_compat.h
 
 Once you have those two files you can continue as normal.
 
+The uvcdynctrl directory ships with the two files cmdline.[ch]. As long as
+those are present, gnugetopt is not required. If they are missing, the build
+system will try to create them with the help of gnugetopt.
+
 The build system is based on CMake. Because of the way CMake works, Makefiles
 do not ship with libwebcam, so you have to have CMake installed. Don't worry,
 though, you are likely to have a lot less illegible error messages than with
@@ -71,6 +71,8 @@ mkdir build
 cd build
 cmake ..
 make
+
+You need at least CMake 2.4.4 in order for the Libxml2 detection to work.
 
 
 Questions and feedback
