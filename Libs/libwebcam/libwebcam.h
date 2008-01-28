@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2006-2007 Logitech.
+ * Copyright (c) 2006-2008 Logitech.
  *
  * This file is part of libwebcam.
  * 
@@ -41,6 +41,10 @@
 /// Whether to compile in support functions for the Linux UVC driver's dynamic
 /// controls.
 #undef	DISABLE_UVCVIDEO_DYNCTRL
+// There is no dynctrl support without uvcvideo support
+#ifndef USE_UVCVIDEO
+	#define	DISABLE_UVCVIDEO_DYNCTRL
+#endif
 
 /// Whether to use the V4L2_CTRL_FLAG_NEXT_CTRL flag when enumerating V4L2 controls
 #define	ENABLE_V4L2_ADVANCED_CONTROL_ENUMERATION

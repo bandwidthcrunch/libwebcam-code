@@ -1203,6 +1203,17 @@ static CResult create_control_choices (Control *ctrl, struct v4l2_queryctrl *v4l
 	for(v4l2_menu.index = v4l2_ctrl->minimum; v4l2_menu.index <= v4l2_ctrl->maximum; v4l2_menu.index++) {
 		int choice_index = v4l2_menu.index - v4l2_ctrl->minimum;
 		if(ioctl(v4l2_dev, VIDIOC_QUERYMENU, &v4l2_menu)) {
+#ifdef V4L2_CID_EXPOSURE_AUTO
+			// Some newer versions of the UVC driver implement an 'Exposure, Auto' menu control
+			// whose menu choices don't have contiguous IDs but { 1, 2, 4, 8 } instead.
+			if(v4l2_ctrl->id == V4L2_CID_EXPOSURE_AUTO && errno == EINVAL) {
+				print_error(
+						"Unsupported V4L2_CID_EXPOSURE_AUTO control with a non-contiguous \n"
+						"  range of choice IDs found");
+				ret = C_NOT_IMPLEMENTED;
+				goto done;
+			}
+#endif
 			ret = C_V4L2_ERROR;
 			goto done;
 		}
@@ -1307,8 +1318,10 @@ static Control *create_control (Device *device, struct v4l2_queryctrl *v4l2_ctrl
 	}
 
 done:
-	if(ret != C_SUCCESS && ctrl)
+	if(ret != C_SUCCESS && ctrl) {
 		free(ctrl);
+		ctrl = NULL;
+	}
 	if(pret)
 		*pret = ret;
 	return ctrl;
@@ -1674,7 +1687,15 @@ static CControlId get_control_id_from_v4l2 (int v4l2_id, Device *dev)
 	// Custom V4L2 driver controls
 	else if(v4l2_id > V4L2_CID_PRIVATE_BASE)
 		return CC_V4L2_CUSTOM_BASE + (v4l2_id - V4L2_CID_PRIVATE_BASE);
-	print_error("Unknown V4L2 control ID encountered: %d", v4l2_id);
+	if(v4l2_id >= V4L2_CID_PRIVATE_BASE) {
+		print_error(
+			"Unknown custom V4L2 control ID encountered: %d (V4L2_CID_PRIVATE_BASE + %d)",
+			v4l2_id, v4l2_id - V4L2_CID_PRIVATE_BASE
+		);
+	}
+	else {
+		print_error("Unknown V4L2 control ID encountered: %d", v4l2_id);
+	}
 	return 0;
 }
 

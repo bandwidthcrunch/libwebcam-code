@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2006-2007 Logitech.
+ * Copyright (c) 2006-2008 Logitech.
  *
  * This file is part of libwebcam.
  * 
@@ -23,8 +23,6 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with libwebcam.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef DISABLE_UVCVIDEO_DYNCTRL
 
 #ifndef _GNU_SOURCE
 	#define _GNU_SOURCE
@@ -43,6 +41,8 @@
 
 #include "webcam.h"
 #include "libwebcam.h"
+
+#ifndef DISABLE_UVCVIDEO_DYNCTRL
 
 #include "uvcvideo.h"
 #include <libxml/parser.h>
@@ -1617,6 +1617,7 @@ done:
  * 		- #C_INVALID_DEVICE if no supported devices are available
  * 		- #C_NO_MEMORY if memory could not be allocated
  * 		- #C_SUCCESS if the parsing was successful and no fatal error occurred
+ * 		- #C_NOT_IMPLEMENTED if libwebcam was compiled with dynctrl support disabled
  */
 CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *info)
 {
@@ -1745,6 +1746,15 @@ done:
 	if(devices) free(devices);
 
 	return ret;
+}
+
+
+#else
+
+
+CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *info)
+{
+	return C_NOT_IMPLEMENTED;
 }
 
 

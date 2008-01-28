@@ -1,1 +1,84 @@
-Please refer to the README files in Libs/libwebcam and Apps/uvcdynctrl.
+libwebcam Webcam Library and tools
+==================================
+
+Introduction
+------------
+
+The libwebcam package contains the following two components:
+- libwebcam - Webcam Library
+- uvcdynctrl - Manage dynamic controls in uvcvideo
+
+This README file contains information that is common to all of the above
+components. For component specific information please refer to the README
+files in Libs/libwebcam and Apps/uvcdynctrl.
+
+
+Versions
+--------
+
+Note that the latest versions of the Webcam Library, its API documentation, and
+uvcdynctrl can always be found at the following address:
+
+QuickCam Team
+  http://www.quickcamteam.net/
+
+
+Building
+--------
+
+External dependencies:
+- uvcvideo (Linux UVC driver)
+- libxml2
+- gengetopt
+
+Important note on the uvcvideo and gengetopt dependencies:
+
+The configure script does not currently check for the existence of gengetopt.
+Make sure you install it before running 'make', otherwise your build will fail.
+This may be fixed in a future release.
+
+Unless the USE_UVCVIDEO constant is disabled (it is enabled by default),
+libwebcam needs two header files from the Linux UVC driver. If you don't
+already have them on your hard disk, you can download them from the uvcvideo
+project's home page at http://linux-uvc.berlios.de/ or directly from the
+Subversion repository at:
+http://svn.berlios.de/svnroot/repos/linux-uvc/linux-uvc/trunk/
+
+You must copy or link uvcvideo.h and uvc_compat.h into the /Common/include/
+directory, e.g. using the following commands:
+
+cd Common/include/
+ln -s ~/uvcvideo/trunk/uvcvideo.h
+ln -s ~/uvcvideo/trunk/uvc_compat.h
+
+or
+
+cd Common/include/
+wget http://svn.berlios.de/svnroot/repos/linux-uvc/linux-uvc/trunk/uvcvideo.h
+wget http://svn.berlios.de/svnroot/repos/linux-uvc/linux-uvc/trunk/uvc_compat.h
+
+Once you have those two files you can continue as normal.
+
+The build system is based on CMake. Because of the way CMake works, Makefiles
+do not ship with libwebcam, so you have to have CMake installed. Don't worry,
+though, you are likely to have a lot less illegible error messages than with
+the previous GNU Automake.
+
+Once you have CMake installed you can build and install it by running the
+following commands in the libwebcam source directory:
+
+mkdir build
+cd build
+cmake ..
+make
+
+
+Questions and feedback
+----------------------
+
+There is a forum for developers and users of the Webcam Library. Please feel
+free to post your questions and comments:
+
+QuickCam Team discussion forums
+  http://forums.quickcamteam.net/forumdisplay.php
+

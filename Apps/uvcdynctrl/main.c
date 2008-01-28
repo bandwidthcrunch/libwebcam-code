@@ -2,7 +2,7 @@
  * uvcdynctrl - Manage dynamic controls in uvcvideo
  *
  *
- * Copyright (c) 2006-2007 Logitech.
+ * Copyright (c) 2006-2008 Logitech.
  *
  * This file is part of uvcdynctrl.
  * 
@@ -473,9 +473,11 @@ add_control_mappings(const char *filename)
 
 	printf("Importing dynamic controls from file %s.\n", filename);
 	CResult res = c_add_control_mappings_from_file(filename, &info);
+	if(res)
+		print_error("Unable to import dynamic controls", res);
 
 	// Print meta information if we're in verbose mode
-	if(HAS_VERBOSE()) {
+	if(res == C_SUCCESS && HAS_VERBOSE()) {
 		printf(
 			"Available meta information:\n"
 			"  File format: %d.%d\n"
@@ -489,12 +491,6 @@ add_control_mappings(const char *filename)
 			info.meta.copyright ? info.meta.copyright : "(unknown)",
 			info.meta.revision.major, info.meta.revision.minor
 		);
-		if(info.meta.author)
-			free(info.meta.author);
-		if(info.meta.contact)
-			free(info.meta.contact);
-		if(info.meta.author)
-			free(info.meta.copyright);
 	}
 
 	// Print errors
@@ -537,6 +533,12 @@ add_control_mappings(const char *filename)
 
 	if(info.messages)
 		free(info.messages);
+	if(info.meta.author)
+		free(info.meta.author);
+	if(info.meta.contact)
+		free(info.meta.contact);
+	if(info.meta.author)
+		free(info.meta.copyright);
 	return res;
 }
 

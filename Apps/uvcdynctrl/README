@@ -28,44 +28,28 @@ functions that illustrate the power of libwebcam. Check out the built-in
 command line help for details.
 
 
-Versions
---------
-
-Note that the latest version of uvcdynctrl can always be found at the
-following address:
-
-QuickCam Team
-  http://www.quickcamteam.net/
-
-Change log:
+Change log
+----------
 
 0.2: 
 - Experimental support for udev (support script and rules).
-- Added a new option -f or --formats to list a device's frame format list (pixel formats, frame sizes, and frame intervals).
+- Added a new option -f or --formats to list a device's frame format list
+  (pixel formats, frame sizes, and frame intervals).
 - Make use of the improved error message reporting in libwebcam.
 - Added support for displaying processing statistics in verbose mode.
 - Support for the new informational messages (dynctrl).
 - Added a hint to the quick help on how to set negative control values.
-- Fix: Import (-i) no longer needs a valid device to be specified (or the default video0 to be present).
+- Fix: Import (-i) no longer needs a valid device to be specified (or the
+  default video0 to be present).
 
 0.1: Initial release
 
 
-Building
---------
+Building, questions, and feedback
+---------------------------------
 
-The uvcdynctrl tool is distributed as part of libwebcam. Please see the
-libwebcam README file for building instructions.
-
-
-Questions and feedback
-----------------------
-
-There is a forum for developers and users of the Webcam Library and the
-uvcdynctrl tool. Please feel free to post your questions and comments:
-
-QuickCam Team discussion forums
-  http://forums.quickcamteam.net/forumdisplay.php
+Please see the README file in the top level directory for building
+instructions and how to contact the developers.
 
 
 Copyright and license
