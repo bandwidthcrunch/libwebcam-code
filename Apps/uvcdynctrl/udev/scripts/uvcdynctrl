@@ -10,8 +10,8 @@ logfile=/tmp/uvcdynctrl-udev.log
 #logfile=/dev/null
 uvcdynctrlpath=uvcdynctrl
 
-echo "\n==============================================================================" >> $logfile
-echo "Triggered at `date`\n" >> $logfile
+echo -e "\n==============================================================================" >> $logfile
+echo -e "Triggered at `date`\n" >> $logfile
 set >> $logfile
 echo >> $logfile
 
@@ -85,4 +85,4 @@ done
 
 
 
-echo "==============================================================================\n" >> $logfile
+echo -e "==============================================================================\n" >> $logfile
