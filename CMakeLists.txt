@@ -37,7 +37,9 @@ SET (CPACK_SOURCE_PACKAGE_FILE_NAME		"libwebcam-${CPACK_PACKAGE_VERSION_MAJOR}.$
 SET (CPACK_SOURCE_IGNORE_FILES			"/\\\\.svn/"					# Subversion directories
 										"/\\\\..+$"						# Hidden files and directories
 										"/Common/include/uvc.*\\\\.h"	# uvcvideo headers
-										"uninstall\\\\.sh"
+										"uninstall.sh"
+										"makedoc.sh"
+										"/doxygen\\\\.*/"
 										"build"							# The build directory
 )
 

@@ -173,7 +173,7 @@ typedef struct _ParseContext {
  *
  * This function assumes that @a guid is a valid GUID string. No validation is performed.
  */
-void guid_to_byte_array (const char *guid, __u8 *array)
+static void guid_to_byte_array (const char *guid, __u8 *array)
 {
 	array[ 0] = HEX_DECODE_BYTE(guid +  6);
 	array[ 1] = HEX_DECODE_BYTE(guid +  4);
@@ -1558,7 +1558,7 @@ static CResult device_supports_dynctrl(ParseContext *ctx)
  * 		- #C_INVALID_DEVICE if no devices are available
  * 		- #C_SUCCESS if adding the controls and control mappings was successful
  */
-CResult add_control_mappings (xmlDoc *xml_doc, ParseContext *ctx)
+static CResult add_control_mappings (xmlDoc *xml_doc, ParseContext *ctx)
 {
 	CResult ret = C_SUCCESS;
 
