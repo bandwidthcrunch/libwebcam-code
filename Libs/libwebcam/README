@@ -29,7 +29,7 @@ the addition of new controls or events is straightforward.
 Change log
 ----------
 
-0.1.1:
+0.1.1 (2008-01-29):
 - Added support the V4L2_CTRL_FLAG_READ_ONLY flag.
 - Added per handle tracking of the last system error and a new
   c_get_handle_error_text function that allows a handle's last system error
@@ -49,10 +49,12 @@ Change log
   future.
 - Added a stub implementation of c_add_control_mappings_from_file for when
   DISABLE_UVCVIDEO_DYNCTRL is set.
-- Added a workaround for the UVC driver's problematic V4L2_CID_EXPOSURE_AUTO
-  control. This is a menu control whose menu choices don't have contiguous IDs
-  but { 1, 2, 4, 8 } instead. For the moment, the library just skips that
-  control.
+- Added a workaround for the current UVC driver's problematic
+  V4L2_CID_EXPOSURE_AUTO control. This is a menu control whose menu choices
+  don't have contiguous IDs but { 1, 2, 4, 8 } instead. For the moment, the
+  library just skips that control.
+- Improved detection of invalid menu controls whose full choice range is not
+  correctly queriable.
 - Fix: Bogus warning messages related to the V4L2 control types 'Button' and
   'Integer64'. Support for these types in libwebcam is still missing, though.
 - Fix: Device enumeration issue with V4L1 devices present in the system.

@@ -58,7 +58,7 @@ output in /tmp/uvcdynctrl-udev.log.
 Change log
 ----------
 
-0.2: 
+0.2 (2008-01-29): 
 - Experimental support for udev (support script and rules).
 - Added a new option -f or --formats to list a device's frame format list
   (pixel formats, frame sizes, and frame intervals).

@@ -1203,17 +1203,28 @@ static CResult create_control_choices (Control *ctrl, struct v4l2_queryctrl *v4l
 	for(v4l2_menu.index = v4l2_ctrl->minimum; v4l2_menu.index <= v4l2_ctrl->maximum; v4l2_menu.index++) {
 		int choice_index = v4l2_menu.index - v4l2_ctrl->minimum;
 		if(ioctl(v4l2_dev, VIDIOC_QUERYMENU, &v4l2_menu)) {
+			if(errno == EINVAL) {
 #ifdef V4L2_CID_EXPOSURE_AUTO
 			// Some newer versions of the UVC driver implement an 'Exposure, Auto' menu control
 			// whose menu choices don't have contiguous IDs but { 1, 2, 4, 8 } instead.
-			if(v4l2_ctrl->id == V4L2_CID_EXPOSURE_AUTO && errno == EINVAL) {
-				print_error(
+				if(v4l2_ctrl->id == V4L2_CID_EXPOSURE_AUTO && errno == EINVAL &&
+						v4l2_menu.index == 0) {
+					print_error(
 						"Unsupported V4L2_CID_EXPOSURE_AUTO control with a non-contiguous \n"
 						"  range of choice IDs found");
+				}
+				else
+#endif
+				{
+					print_error(
+						"Invalid menu control choice range encountered.\n"
+						"  Indicated range is [ %d .. %d ] but querying choice %d failed.",
+						v4l2_ctrl->minimum, v4l2_ctrl->maximum, v4l2_menu.index
+					);
+				}
 				ret = C_NOT_IMPLEMENTED;
 				goto done;
 			}
-#endif
 			ret = C_V4L2_ERROR;
 			goto done;
 		}
@@ -1421,7 +1432,8 @@ static CResult refresh_control_list (Device *dev)
 		v4l2_ctrl.id = 0;
 		int current_ctrl = v4l2_ctrl.id;
 		v4l2_ctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
-		while((r = ioctl(v4l2_dev, VIDIOC_QUERYCTRL, &v4l2_ctrl)), errno != EINVAL) {
+		// Loop as long as ioctl does not return EINVAL
+		while((r = ioctl(v4l2_dev, VIDIOC_QUERYCTRL, &v4l2_ctrl)), r ? errno != EINVAL : 1) {
 #ifdef CONTROL_IO_ERROR_RETRIES
 			if(r && (errno == EIO || errno == EPIPE || errno == ETIMEDOUT)) {
 				// An I/O error occurred, so retry the query a few times.
@@ -1466,7 +1478,6 @@ static CResult refresh_control_list (Device *dev)
 					print_error("Invalid or unsupported V4L2 control encountered: "
 							"ctrl_id = %d, name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
 					ret = C_SUCCESS;
-					goto next_control;
 				}
 				else {
 					goto done;
