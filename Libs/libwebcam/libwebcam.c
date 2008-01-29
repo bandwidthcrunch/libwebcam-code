@@ -1205,8 +1205,9 @@ static CResult create_control_choices (Control *ctrl, struct v4l2_queryctrl *v4l
 		if(ioctl(v4l2_dev, VIDIOC_QUERYMENU, &v4l2_menu)) {
 			if(errno == EINVAL) {
 #ifdef V4L2_CID_EXPOSURE_AUTO
-			// Some newer versions of the UVC driver implement an 'Exposure, Auto' menu control
-			// whose menu choices don't have contiguous IDs but { 1, 2, 4, 8 } instead.
+				// Some newer versions of the UVC driver implement an 'Exposure, Auto'
+				// menu control whose menu choices don't have contiguous IDs
+				// but { 1, 2, 4, 8 } instead.
 				if(v4l2_ctrl->id == V4L2_CID_EXPOSURE_AUTO && errno == EINVAL &&
 						v4l2_menu.index == 0) {
 					print_error(
