@@ -38,6 +38,10 @@
 /// Whether private controls of the Linux UVC driver should be used or not
 #define	USE_UVCVIDEO
 
+/// Whether or not to include the automatically generated Logitech dynamic controls
+/// header file.
+#define USE_LOGITECH_DYNCTRL
+
 /// Whether to compile in support functions for the Linux UVC driver's dynamic
 /// controls.
 #undef	DISABLE_UVCVIDEO_DYNCTRL

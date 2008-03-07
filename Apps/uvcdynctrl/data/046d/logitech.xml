@@ -13,9 +13,13 @@
 		<revision>0.15</revision>
 		<copyright>Copyright (c) 2006-2007 Logitech</copyright>
 		<history>
+			0.16, 2008-03-07:
+			- Updated the values of V4L2_CID_PAN_RELATIVE and V4L2_CID_PAN_RELATIVE to work with the latest UVC driver (those values will be part of kernels >= 2.6.26).
+			- Support for two new controls defined by V4L2 starting from 2.6.26:V4L2_CID_PAN_RESET ('Pan Reset') and V4L2_CID_TILT_RESET ('Tilt reset').
+
 			0.15, 2007-12-13:
 			- Added a control to change the LED blink frequency.
-			- Added the two controls required for enabling Bayer mode (Disable video processing and Raw bits per pixel)
+			- Added the two controls required for enabling Bayer mode (Disable video processing and Raw bits per pixel).
 
 			0.14, 2007-11-19:
 			- Fixed the bitmap indices which were off by one.
@@ -79,15 +83,23 @@
 		<!-- V4L2 control identifiers -->
 		<constant type="integer">
 			<id>V4L2_CID_PAN_RELATIVE</id>
-			<value>0x0A046D01</value>
+			<value>0x009A0904</value><!-- V4L2_CID_CAMERA_CLASS_BASE + 4 -->
 		</constant>
 		<constant type="integer">
 			<id>V4L2_CID_TILT_RELATIVE</id>
-			<value>0x0A046D02</value>
+			<value>0x009A0905</value><!-- V4L2_CID_CAMERA_CLASS_BASE + 5 -->
 		</constant>
 		<constant type="integer">
 			<id>V4L2_CID_PANTILT_RESET</id>
 			<value>0x0A046D03</value>
+		</constant>
+		<constant type="integer">
+			<id>V4L2_CID_PAN_RESET</id>
+			<value>0x009A0906</value><!-- V4L2_CID_CAMERA_CLASS_BASE + 6 -->
+		</constant>
+		<constant type="integer">
+			<id>V4L2_CID_TILT_RESET</id>
+			<value>0x009A0907</value><!-- V4L2_CID_CAMERA_CLASS_BASE + 7 -->
 		</constant>
 		<constant type="integer">
 			<id>V4L2_CID_FOCUS</id>
@@ -327,6 +339,34 @@
 			</uvc>
 			<v4l2>
 				<id>V4L2_CID_TILT_RELATIVE</id>
+				<v4l2_type>V4L2_CTRL_TYPE_INTEGER</v4l2_type>
+			</v4l2>
+		</mapping>
+		
+		<mapping>
+			<name>Pan Reset</name>
+			<uvc>
+				<control_ref idref="logitech_motor_pantilt_reset"/>
+				<size>1</size>
+				<offset>0</offset>
+				<uvc_type>UVC_CTRL_DATA_TYPE_UNSIGNED</uvc_type>
+			</uvc>
+			<v4l2>
+				<id>V4L2_CID_PAN_RESET</id>
+				<v4l2_type>V4L2_CTRL_TYPE_INTEGER</v4l2_type>
+			</v4l2>
+		</mapping>
+		
+		<mapping>
+			<name>Tilt Reset</name>
+			<uvc>
+				<control_ref idref="logitech_motor_pantilt_reset"/>
+				<size>1</size>
+				<offset>1</offset>
+				<uvc_type>UVC_CTRL_DATA_TYPE_UNSIGNED</uvc_type>
+			</uvc>
+			<v4l2>
+				<id>V4L2_CID_TILT_RESET</id>
 				<v4l2_type>V4L2_CTRL_TYPE_INTEGER</v4l2_type>
 			</v4l2>
 		</mapping>

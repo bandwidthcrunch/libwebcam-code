@@ -142,6 +142,12 @@ typedef enum _CControlId {
 	/// Temporarily prevent image from being acquired
 	CC_PRIVACY,
 
+	// V4L2: Motion control (new since 2.6.26)
+	/// Reset pan angle to a safe default value.
+	CC_PAN_RESET,
+	/// Reset tilt angle to a safe default value.
+	CC_TILT_RESET,
+
 	// V4L2: Unknown controls
 	/// Base for unknown V4L2 controls
 	CC_V4L2_BASE = 0x1000,

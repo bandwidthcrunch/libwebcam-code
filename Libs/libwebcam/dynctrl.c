@@ -1541,8 +1541,23 @@ static CResult device_supports_dynctrl(ParseContext *ctx)
 	assert(ctx->v4l2_handle);
 
 	int v4l2_ret = ioctl(ctx->v4l2_handle, UVCIOC_CTRL_ADD, &xu_control);
-	if(v4l2_ret != -1 || errno != EEXIST)
+	if(v4l2_ret == -1) {
+		if(errno == EPERM) {
+			/* User is not root (newer drivers require root permissions) */
+			ret = C_CANNOT_WRITE;
+		}
+		else if(errno == EEXIST) {
+			/* Driver supports dynamic controls */
+		}
+		else {
+			/* Unexpected error: Assume not supported */
+			ret = C_NOT_IMPLEMENTED;
+		}
+	}
+	else {
+		/* Success: Assume not supported */
 		ret = C_NOT_IMPLEMENTED;
+	}
 
 	return ret;
 }
@@ -1556,6 +1571,7 @@ static CResult device_supports_dynctrl(ParseContext *ctx)
  *
  * @return
  * 		- #C_INVALID_DEVICE if no devices are available
+ * 		- #C_CANNOT_WRITE if the user does not have permissions to add the mappings
  * 		- #C_SUCCESS if adding the controls and control mappings was successful
  */
 static CResult add_control_mappings (xmlDoc *xml_doc, ParseContext *ctx)
@@ -1696,6 +1712,13 @@ CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *i
 				"device '%s' skipped because the driver '%s' behind it does not seem "
 				"to support dynamic controls.",
 				device->shortName, device->driver
+			);
+		}
+		else if(ret == C_CANNOT_WRITE) {
+			add_error(ctx,
+				"device '%s' skipped because you do not have the right permissions. "
+				"Newer driver versions require root permissions.",
+				device->shortName
 			);
 		}
 		else {

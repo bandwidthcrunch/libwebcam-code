@@ -48,6 +48,10 @@
 #include "uvcvideo.h"
 #endif
 
+#ifdef USE_LOGITECH_DYNCTRL
+#include "../../Common/include/dynctrl-logitech.h"
+#endif
+
 
 /// A flag indicating whether the library was initialized.
 int initialized = 0;
@@ -1671,21 +1675,30 @@ static CControlId get_control_id_from_v4l2 (int v4l2_id, Device *dev)
 			case V4L2_CID_FOCUS_ABSOLUTE:					return CC_FOCUS_ABSOLUTE;
 			case V4L2_CID_FOCUS_RELATIVE:					return CC_FOCUS_RELATIVE;
 
-#ifdef V4L2_CID_PANTILT_RELATIVE
+#ifdef V4L2_CID_PANTILT_RELATIVE	/* Old UVC driver revisions */
 			case V4L2_CID_PANTILT_RELATIVE:					return CC_LOGITECH_PANTILT_RELATIVE;
 #endif
-#ifdef V4L2_CID_PAN_RELATIVE
+#ifdef V4L2_CID_PAN_RELATIVE		/* Part of Linux since 2.6.26 */
 			case V4L2_CID_PAN_RELATIVE:						return CC_PAN_RELATIVE;
 #endif
-#ifdef V4L2_CID_TILT_RELATIVE
+#ifdef V4L2_CID_TILT_RELATIVE		/* Part of Linux since 2.6.26 */
 			case V4L2_CID_TILT_RELATIVE:					return CC_TILT_RELATIVE;
 #endif
+			case V4L2_CID_PAN_RESET:						return CC_PAN_RESET;
+			case V4L2_CID_TILT_RESET:						return CC_TILT_RESET;
+#ifdef V4L2_CID_PANTILT_RESET
 			case V4L2_CID_PANTILT_RESET:					return CC_LOGITECH_PANTILT_RESET;
+#endif
 
 			case V4L2_CID_EXPOSURE_AUTO:					return CC_AUTO_EXPOSURE_MODE;
 			case V4L2_CID_EXPOSURE_ABSOLUTE:				return CC_EXPOSURE_TIME_ABSOLUTE;
 
+#ifdef V4L2_CID_WHITE_BALANCE_TEMPERATURE_AUTO	/* UVC driver revisions <= r178 */
 			case V4L2_CID_WHITE_BALANCE_TEMPERATURE_AUTO:	return CC_AUTO_WHITE_BALANCE_TEMPERATURE;
+#endif
+#ifdef V4L2_CID_AUTO_WHITE_BALANCE
+			case V4L2_CID_AUTO_WHITE_BALANCE:				return CC_AUTO_WHITE_BALANCE_TEMPERATURE;
+#endif
 			case V4L2_CID_WHITE_BALANCE_TEMPERATURE:		return CC_WHITE_BALANCE_TEMPERATURE;
 		}
 	}
