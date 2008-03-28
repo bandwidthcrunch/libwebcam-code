@@ -71,8 +71,19 @@ mkdir build
 cd build
 cmake ..
 make
+make install (as root)
 
 You need at least CMake 2.4.4 in order for the Libxml2 detection to work.
+
+CMake defaults to installing binaries and libraries to /usr/local. To use a
+different install prefix, you can replace the above 'cmake' command with the
+following:
+
+cmake .. -DCMAKE_INSTALL_PREFIX=/usr
+
+If you prefer to leave the prefix alone, you should make sure that
+/usr/local/bin is in your path and LD_LIBRARY_PATH contains the /usr/local/lib
+directory.
 
 
 Questions and feedback
