@@ -98,6 +98,30 @@ typedef enum _ConstantType {
 
 } ConstantType;
 
+// Define uvc_control_data_type which existed for uvcvideo < r209.
+// It has been removed because enum's are not binary compatible on certain platforms among
+// different compilers. In our case we don't care and enums are handy, so we redefine it.
+#ifdef UVC_CTRL_DATA_TYPE_RAW
+	#undef UVC_CTRL_DATA_TYPE_RAW
+	#undef UVC_CTRL_DATA_TYPE_SIGNED
+	#undef UVC_CTRL_DATA_TYPE_UNSIGNED
+	#undef UVC_CTRL_DATA_TYPE_BOOLEAN
+	#undef UVC_CTRL_DATA_TYPE_ENUM
+	#undef UVC_CTRL_DATA_TYPE_BITMASK
+
+	/**
+	 * Data type for dynamic UVC driver controls.
+	 */
+	enum uvc_control_data_type {
+		UVC_CTRL_DATA_TYPE_RAW = 0,
+		UVC_CTRL_DATA_TYPE_SIGNED,
+		UVC_CTRL_DATA_TYPE_UNSIGNED,
+		UVC_CTRL_DATA_TYPE_BOOLEAN,
+		UVC_CTRL_DATA_TYPE_ENUM,
+		UVC_CTRL_DATA_TYPE_BITMASK,
+	};
+#endif
+
 
 
 /*

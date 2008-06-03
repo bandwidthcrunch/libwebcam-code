@@ -1700,6 +1700,7 @@ static CControlId get_control_id_from_v4l2 (int v4l2_id, Device *dev)
 			case V4L2_CID_AUTO_WHITE_BALANCE:				return CC_AUTO_WHITE_BALANCE_TEMPERATURE;
 #endif
 			case V4L2_CID_WHITE_BALANCE_TEMPERATURE:		return CC_WHITE_BALANCE_TEMPERATURE;
+			case V4L2_CID_EXPOSURE_AUTO_PRIORITY:			return CC_AUTO_EXPOSURE_PRIORITY;
 		}
 	}
 #endif
@@ -1707,6 +1708,7 @@ static CControlId get_control_id_from_v4l2 (int v4l2_id, Device *dev)
 	// Unknown V4L2 controls
 	// Note that there is a margin of 256 control values for controls that are added
 	// after libwebcam compilation time.
+	// TODO better handling of unknown controls
 	if(v4l2_id > V4L2_CID_BASE && v4l2_id < V4L2_CID_LASTP1 + 0x100)
 		return CC_V4L2_BASE + (v4l2_id - V4L2_CID_BASE);
 	// Custom V4L2 driver controls
