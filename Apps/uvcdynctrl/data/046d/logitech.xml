@@ -10,9 +10,12 @@
 		<version>1.0</version>
 		<author>Martin Rubli, Logitech</author>
 		<contact>http://www.quickcamteam.net/</contact>
-		<revision>0.15</revision>
-		<copyright>Copyright (c) 2006-2007 Logitech</copyright>
+		<revision>0.17</revision>
+		<copyright>Copyright (c) 2006-2008 Logitech</copyright>
 		<history>
+			0.17, 2008-10-17:
+			- Mark the GET_CUR request as supported for the XU_MOTORCONTROL_FOCUS control.
+		
 			0.16, 2008-03-07:
 			- Updated the values of V4L2_CID_PAN_RELATIVE and V4L2_CID_PAN_RELATIVE to work with the latest UVC driver (those values will be part of kernels >= 2.6.26).
 			- Support for two new controls defined by V4L2 starting from 2.6.26:V4L2_CID_PAN_RESET ('Pan Reset') and V4L2_CID_TILT_RESET ('Tilt reset').
@@ -240,6 +243,7 @@
 					<size>6</size>
 					<requests>
 						<request>SET_CUR</request>
+						<request>GET_CUR</request>
 						<request>GET_MIN</request>
 						<request>GET_MAX</request>
 						<request>GET_DEF</request>
