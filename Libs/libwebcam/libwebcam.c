@@ -38,18 +38,15 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/ioctl.h>
-#include <linux/videodev.h>
 #include <errno.h>
 
 #include "webcam.h"
 #include "libwebcam.h"
 
-#ifdef USE_UVCVIDEO
-#include "uvcvideo.h"
-#endif
+#include "compat.h"
 
 #ifdef USE_LOGITECH_DYNCTRL
-#include "../../Common/include/dynctrl-logitech.h"
+#include <dynctrl-logitech.h>
 #endif
 
 
@@ -1284,22 +1281,31 @@ static Control *create_control (Device *device, struct v4l2_queryctrl *v4l2_ctrl
 		case V4L2_CTRL_TYPE_BUTTON:		// TODO implement
 		case V4L2_CTRL_TYPE_INTEGER64:	// TODO implement
 			ret = C_NOT_IMPLEMENTED;
-			print_error("Warning: Unsupported V4L2 control type encountered: ctrl_id = %d, "
+			print_error("Warning: Unsupported V4L2 control type encountered: ctrl_id = 0x%08X, "
 					"name = '%s', type = %d",
 					v4l2_ctrl->id, v4l2_ctrl->name, v4l2_ctrl->type);
 			goto done;
 		default:
 			ret = C_PARSE_ERROR;
-			print_error("Invalid V4L2 control type encountered: ctrl_id = %d, "
+			print_error("Invalid V4L2 control type encountered: ctrl_id = 0x%08X, "
 					"name = '%s', type = %d",
 					v4l2_ctrl->id, v4l2_ctrl->name, v4l2_ctrl->type);
 			goto done;
 	}
 
+	// Map the V4L2 control ID to a libwebcam ID
+	CControlId ctrl_id = get_control_id_from_v4l2(v4l2_ctrl->id, device);
+	//printf("Mapping V4L2 control ID 0x%08X => 0x%08X\n", v4l2_ctrl->id, ctrl_id);
+	if(ctrl_id == 0) {
+		ret = C_NOT_IMPLEMENTED;
+		goto done;
+	}
+
+	// Create the internal control info structure
 	ctrl = (Control *)malloc(sizeof(*ctrl));
 	if(ctrl) {
 		memset(ctrl, 0, sizeof(*ctrl));
-		ctrl->control.id		= get_control_id_from_v4l2(v4l2_ctrl->id, device);
+		ctrl->control.id		= ctrl_id;
 		ctrl->v4l2_control		= v4l2_ctrl->id;
 		if(strlen((char *)v4l2_ctrl->name))
 			ctrl->control.name		= strdup((char *)v4l2_ctrl->name);
@@ -1411,7 +1417,7 @@ static CResult refresh_control_list (Device *dev)
 {
 	CResult ret = C_SUCCESS;
 	int v4l2_dev;
-	struct v4l2_queryctrl v4l2_ctrl;
+	struct v4l2_queryctrl v4l2_ctrl = { 0 };
 
 	// Clear control list first
 	clear_control_list(dev);
@@ -1481,7 +1487,7 @@ static CResult refresh_control_list (Device *dev)
 			if(ctrl == NULL) {
 				if(ret == C_PARSE_ERROR || ret == C_NOT_IMPLEMENTED) {
 					print_error("Invalid or unsupported V4L2 control encountered: "
-							"ctrl_id = %d, name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
+							"ctrl_id = 0x%08X, name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
 					ret = C_SUCCESS;
 				}
 				else {
@@ -1527,7 +1533,7 @@ next_control:
 			if(ctrl == NULL) {
 				if(ret == C_PARSE_ERROR || ret == C_NOT_IMPLEMENTED) {
 					print_error("Invalid or unsupported V4L2 control encountered: "
-							"ctrl_id = %d, name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
+							"ctrl_id = 0x%08X, name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
 					ret = C_SUCCESS;
 					continue;
 				}
@@ -1555,7 +1561,7 @@ next_control:
 			if(ctrl == NULL) {
 				if(ret == C_PARSE_ERROR || ret == C_NOT_IMPLEMENTED) {
 					print_error("Invalid or unsupported custom V4L2 control encountered: "
-							"ctrl_id = %d, name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
+							"ctrl_id = 0x%08X, name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
 					ret = C_SUCCESS;
 					continue;
 				}
@@ -1650,57 +1656,160 @@ static unsigned int get_control_dynamics_length(Device *device, unsigned int *na
  */
 static CControlId get_control_id_from_v4l2 (int v4l2_id, Device *dev)
 {
-	// Native V4L2 controls
 	switch(v4l2_id) {
+		// Basic V4L2 controls
 		case V4L2_CID_BRIGHTNESS:			return CC_BRIGHTNESS;
 		case V4L2_CID_CONTRAST:				return CC_CONTRAST;
 		case V4L2_CID_SATURATION:			return CC_SATURATION;
 		case V4L2_CID_HUE:					return CC_HUE;
+		case V4L2_CID_AUDIO_VOLUME:			break;	// not supported by libwebcam
+		case V4L2_CID_AUDIO_BALANCE:		break;	// not supported by libwebcam
+		case V4L2_CID_AUDIO_BASS:			break;	// not supported by libwebcam
+		case V4L2_CID_AUDIO_TREBLE:			break;	// not supported by libwebcam
+		case V4L2_CID_AUDIO_MUTE:			break;	// not supported by libwebcam
+		case V4L2_CID_AUDIO_LOUDNESS:		break;	// not supported by libwebcam
+		case V4L2_CID_BLACK_LEVEL:			break;	// deprecated
 		case V4L2_CID_AUTO_WHITE_BALANCE:	return CC_AUTO_WHITE_BALANCE_TEMPERATURE;
+		case V4L2_CID_DO_WHITE_BALANCE:		break;	// not supported by libwebcam
+		case V4L2_CID_RED_BALANCE:			break;	// not supported by libwebcam
+		case V4L2_CID_BLUE_BALANCE:			break;	// not supported by libwebcam
 		case V4L2_CID_GAMMA:				return CC_GAMMA;
 		case V4L2_CID_EXPOSURE:				return CC_EXPOSURE_TIME_ABSOLUTE;
+		case V4L2_CID_AUTOGAIN:				break;	// not supported by libwebcam
 		case V4L2_CID_GAIN:					return CC_GAIN;
+		case V4L2_CID_HFLIP:				break;	// not supported by libwebcam
+		case V4L2_CID_VFLIP:				break;	// not supported by libwebcam
+		case V4L2_CID_HCENTER:				break;	// deprecated
+		case V4L2_CID_VCENTER:				break;	// deprecated
+#ifdef V4L2_CID_POWER_LINE_FREQUENCY
+		case V4L2_CID_POWER_LINE_FREQUENCY:		return CC_POWER_LINE_FREQUENCY;
+#endif
+#ifdef V4L2_CID_HUE_AUTO
+		case V4L2_CID_HUE_AUTO:					return CC_AUTO_HUE;
+#endif
+#ifdef V4L2_CID_WHITE_BALANCE_TEMPERATURE
+		case V4L2_CID_WHITE_BALANCE_TEMPERATURE:	return CC_WHITE_BALANCE_TEMPERATURE;
+#endif
+#ifdef V4L2_CID_SHARPNESS
+		case V4L2_CID_SHARPNESS:				return CC_SHARPNESS;
+#endif
+#ifdef V4L2_CID_BACKLIGHT_COMPENSATION
+		case V4L2_CID_BACKLIGHT_COMPENSATION:	return CC_BACKLIGHT_COMPENSATION;
+#endif
+#ifdef V4L2_CID_CHROMA_AGC
+		case V4L2_CID_CHROMA_AGC:				break;	// not supported by libwebcam
+#endif
+#ifdef V4L2_CID_COLOR_KILLER
+		case V4L2_CID_COLOR_KILLER:				break;	// not supported by libwebcam
+#endif
+#ifdef V4L2_CID_COLORFX
+		case V4L2_CID_COLORFX:					break;	// not supported by libwebcam
+#endif
+
+		// Camera/UVC driver controls
+#ifdef V4L2_CID_EXPOSURE_AUTO
+		case V4L2_CID_EXPOSURE_AUTO:			return CC_AUTO_EXPOSURE_MODE;
+#endif
+#ifdef V4L2_CID_EXPOSURE_ABSOLUTE
+		case V4L2_CID_EXPOSURE_ABSOLUTE:		return CC_EXPOSURE_TIME_ABSOLUTE;
+#endif
+#ifdef V4L2_CID_EXPOSURE_AUTO_PRIORITY
+		case V4L2_CID_EXPOSURE_AUTO_PRIORITY:	return CC_AUTO_EXPOSURE_PRIORITY;
+#endif
+#ifdef V4L2_CID_PAN_RELATIVE
+		case V4L2_CID_PAN_RELATIVE:				return CC_PAN_RELATIVE;
+#endif
+#ifdef V4L2_CID_TILT_RELATIVE
+		case V4L2_CID_TILT_RELATIVE:			return CC_TILT_RELATIVE;
+#endif
+#ifdef V4L2_CID_PAN_RESET
+		case V4L2_CID_PAN_RESET:				return CC_PAN_RESET;
+#endif
+#ifdef V4L2_CID_TILT_RESET
+		case V4L2_CID_TILT_RESET:				return CC_TILT_RESET;
+#endif
+#ifdef V4L2_CID_PAN_ABSOLUTE
+		case V4L2_CID_PAN_ABSOLUTE:				return CC_PAN_ABSOLUTE;
+#endif
+#ifdef V4L2_CID_TILT_ABSOLUTE
+		case V4L2_CID_TILT_ABSOLUTE:			return CC_TILT_ABSOLUTE;
+#endif
+#ifdef V4L2_CID_FOCUS_ABSOLUTE
+		case V4L2_CID_FOCUS_ABSOLUTE:			return CC_FOCUS_ABSOLUTE;
+#endif
+#ifdef V4L2_CID_FOCUS_RELATIVE
+		case V4L2_CID_FOCUS_RELATIVE:			return CC_FOCUS_RELATIVE;
+#endif
+#ifdef V4L2_CID_FOCUS_AUTO
+		case V4L2_CID_FOCUS_AUTO:				return CC_AUTO_FOCUS;
+#endif
+#ifdef V4L2_CID_ZOOM_ABSOLUTE
+		case V4L2_CID_ZOOM_ABSOLUTE:			return CC_ZOOM_ABSOLUTE;
+#endif
+#ifdef V4L2_CID_ZOOM_RELATIVE
+		case V4L2_CID_ZOOM_RELATIVE:			return CC_ZOOM_RELATIVE;
+#endif
+#ifdef V4L2_CID_ZOOM_CONTINUOUS
+		case V4L2_CID_ZOOM_CONTINUOUS:			break;	// not supported by libwebcam
+#endif
+#ifdef V4L2_CID_PRIVACY
+		case V4L2_CID_PRIVACY:					return CC_PRIVACY;
+#endif
 	};
 
-	// USB Video Class driver controls
 #ifdef USE_UVCVIDEO
+	// Controls contained only in older UVC drivers
+	//printf("*** 0x%08X 0x%08X\n", v4l2_id, UVC_CID_EXPOSURE_AUTO);
 	if(strcmp(dev->device.driver, "uvcvideo") == 0) {
 		switch(v4l2_id) {
-			case V4L2_CID_BACKLIGHT_COMPENSATION:			return CC_BACKLIGHT_COMPENSATION;
-			case V4L2_CID_POWER_LINE_FREQUENCY:				return CC_POWER_LINE_FREQUENCY;
-			case V4L2_CID_SHARPNESS:						return CC_SHARPNESS;
-			case V4L2_CID_HUE_AUTO:							return CC_AUTO_HUE;
-
-			case V4L2_CID_FOCUS_AUTO:						return CC_AUTO_FOCUS;
-			case V4L2_CID_FOCUS_ABSOLUTE:					return CC_FOCUS_ABSOLUTE;
-			case V4L2_CID_FOCUS_RELATIVE:					return CC_FOCUS_RELATIVE;
-
-#ifdef V4L2_CID_PANTILT_RELATIVE	/* Old UVC driver revisions */
+#ifdef UVC_CID_BACKLIGHT_COMPENSATION
+			case UVC_CID_BACKLIGHT_COMPENSATION:			return CC_BACKLIGHT_COMPENSATION;
+#endif
+#ifdef UVC_CID_POWER_LINE_FREQUENCY
+			case UVC_CID_POWER_LINE_FREQUENCY:				return CC_POWER_LINE_FREQUENCY;
+#endif
+#ifdef UVC_CID_SHARPNESS
+			case UVC_CID_SHARPNESS:							return CC_SHARPNESS;
+#endif
+#ifdef UVC_CID_HUE_AUTO
+			case UVC_CID_HUE_AUTO:							return CC_AUTO_HUE;
+#endif
+#ifdef UVC_CID_FOCUS_AUTO
+			case UVC_CID_FOCUS_AUTO:						return CC_AUTO_FOCUS;
+#endif
+#ifdef UVC_CID_FOCUS_ABSOLUTE
+			case UVC_CID_FOCUS_ABSOLUTE:					return CC_FOCUS_ABSOLUTE;
+#endif
+#ifdef UVC_CID_FOCUS_RELATIVE
+			case UVC_CID_FOCUS_RELATIVE:					return CC_FOCUS_RELATIVE;
+#endif
+#ifdef UVC_CID_PAN_RELATIVE
+			case UVC_CID_PAN_RELATIVE:						return CC_PAN_RELATIVE;
+#endif
+#ifdef UVC_CID_TILT_RELATIVE
+			case UVC_CID_TILT_RELATIVE:						return CC_TILT_RELATIVE;
+#endif
+#ifdef UVC_CID_PANTILT_RESET
+			case UVC_CID_PANTILT_RESET:						return CC_LOGITECH_PANTILT_RESET;
+#endif
+#ifdef UVC_CID_EXPOSURE_AUTO
+			case UVC_CID_EXPOSURE_AUTO:						return CC_AUTO_EXPOSURE_MODE;
+#endif
+#ifdef UVC_CID_EXPOSURE_ABSOLUTE
+			case UVC_CID_EXPOSURE_ABSOLUTE:					return CC_EXPOSURE_TIME_ABSOLUTE;
+#endif
+#ifdef UVC_CID_EXPOSURE_AUTO_PRIORITY
+			case UVC_CID_EXPOSURE_AUTO_PRIORITY:			return CC_AUTO_EXPOSURE_PRIORITY;
+#endif
+#ifdef UVC_CID_WHITE_BALANCE_TEMPERATURE_AUTO
+			case UVC_CID_WHITE_BALANCE_TEMPERATURE_AUTO:	return CC_AUTO_WHITE_BALANCE_TEMPERATURE;
+#endif
+#ifdef UVC_CID_WHITE_BALANCE_TEMPERATURE
+			case UVC_CID_WHITE_BALANCE_TEMPERATURE:			return CC_WHITE_BALANCE_TEMPERATURE;
+#endif
+#ifdef V4L2_CID_PANTILT_RELATIVE
 			case V4L2_CID_PANTILT_RELATIVE:					return CC_LOGITECH_PANTILT_RELATIVE;
 #endif
-#ifdef V4L2_CID_PAN_RELATIVE		/* Part of Linux since 2.6.26 */
-			case V4L2_CID_PAN_RELATIVE:						return CC_PAN_RELATIVE;
-#endif
-#ifdef V4L2_CID_TILT_RELATIVE		/* Part of Linux since 2.6.26 */
-			case V4L2_CID_TILT_RELATIVE:					return CC_TILT_RELATIVE;
-#endif
-			case V4L2_CID_PAN_RESET:						return CC_PAN_RESET;
-			case V4L2_CID_TILT_RESET:						return CC_TILT_RESET;
-#ifdef V4L2_CID_PANTILT_RESET
-			case V4L2_CID_PANTILT_RESET:					return CC_LOGITECH_PANTILT_RESET;
-#endif
-
-			case V4L2_CID_EXPOSURE_AUTO:					return CC_AUTO_EXPOSURE_MODE;
-			case V4L2_CID_EXPOSURE_ABSOLUTE:				return CC_EXPOSURE_TIME_ABSOLUTE;
-
-#ifdef V4L2_CID_WHITE_BALANCE_TEMPERATURE_AUTO	/* UVC driver revisions <= r178 */
-			case V4L2_CID_WHITE_BALANCE_TEMPERATURE_AUTO:	return CC_AUTO_WHITE_BALANCE_TEMPERATURE;
-#endif
-#ifdef V4L2_CID_AUTO_WHITE_BALANCE
-			case V4L2_CID_AUTO_WHITE_BALANCE:				return CC_AUTO_WHITE_BALANCE_TEMPERATURE;
-#endif
-			case V4L2_CID_WHITE_BALANCE_TEMPERATURE:		return CC_WHITE_BALANCE_TEMPERATURE;
-			case V4L2_CID_EXPOSURE_AUTO_PRIORITY:			return CC_AUTO_EXPOSURE_PRIORITY;
 		}
 	}
 #endif
@@ -1708,21 +1817,40 @@ static CControlId get_control_id_from_v4l2 (int v4l2_id, Device *dev)
 	// Unknown V4L2 controls
 	// Note that there is a margin of 256 control values for controls that are added
 	// after libwebcam compilation time.
-	// TODO better handling of unknown controls
-	if(v4l2_id > V4L2_CID_BASE && v4l2_id < V4L2_CID_LASTP1 + 0x100)
-		return CC_V4L2_BASE + (v4l2_id - V4L2_CID_BASE);
-	// Custom V4L2 driver controls
-	else if(v4l2_id > V4L2_CID_PRIVATE_BASE)
-		return CC_V4L2_CUSTOM_BASE + (v4l2_id - V4L2_CID_PRIVATE_BASE);
-	if(v4l2_id >= V4L2_CID_PRIVATE_BASE) {
+	if(V4L2_CTRL_ID2CLASS(v4l2_id) == V4L2_CTRL_CLASS_USER) {
+		// Unknown user control
 		print_error(
-			"Unknown custom V4L2 control ID encountered: %d (V4L2_CID_PRIVATE_BASE + %d)",
+			"Unknown V4L2 user control ID encountered: 0x%08X (V4L2_CID_USER_BASE + %d)",
+			v4l2_id, v4l2_id - V4L2_CID_USER_BASE
+		);
+		return CC_V4L2_BASE + (v4l2_id - V4L2_CID_USER_BASE);
+	}
+	else if(V4L2_CTRL_ID2CLASS(v4l2_id) == V4L2_CTRL_CLASS_MPEG) {
+		// Unknown MPEG control
+		print_error(
+			"Unknown V4L2 MPEG control ID encountered: 0x%08X (V4L2_CID_MPEG_BASE + %d)",
+			v4l2_id, v4l2_id - V4L2_CID_MPEG_BASE
+		);
+		return CC_V4L2_MPEG_BASE + (v4l2_id - V4L2_CID_MPEG_BASE);
+	}
+	else if(V4L2_CTRL_ID2CLASS(v4l2_id) == V4L2_CTRL_CLASS_CAMERA) {
+		// Unknown camera class (UVC) control
+		print_error(
+			"Unknown V4L2 camera class (UVC) control ID encountered: 0x%08X (V4L2_CID_CAMERA_CLASS_BASE + %d)",
+			v4l2_id, v4l2_id - V4L2_CID_CAMERA_CLASS_BASE
+		);
+		return CC_V4L2_CAMERA_CLASS_BASE + (v4l2_id - V4L2_CID_CAMERA_CLASS_BASE);
+	}
+	else if(v4l2_id >= V4L2_CID_PRIVATE_BASE) {
+		// Unknown private control
+		print_error(
+			"Unknown V4L2 private control ID encountered: 0x%08X (V4L2_CID_PRIVATE_BASE + %d)",
 			v4l2_id, v4l2_id - V4L2_CID_PRIVATE_BASE
 		);
+		return CC_V4L2_CUSTOM_BASE + (v4l2_id - V4L2_CID_PRIVATE_BASE);
 	}
-	else {
-		print_error("Unknown V4L2 control ID encountered: %d", v4l2_id);
-	}
+
+	print_error("Unknown V4L2 control ID encountered: 0x%08X", v4l2_id);
 	return 0;
 }
 

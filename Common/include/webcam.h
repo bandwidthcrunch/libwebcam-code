@@ -150,10 +150,13 @@ typedef enum _CControlId {
 
 	// V4L2: Unknown controls
 	/// Base for unknown V4L2 controls
-	CC_V4L2_BASE = 0x1000,
-	// V4L2: Custom driver controls
+	CC_V4L2_BASE				= 0x1000,
 	/// Base for custom V4L2 driver controls
-	CC_V4L2_CUSTOM_BASE = 0x2000,
+	CC_V4L2_CUSTOM_BASE			= 0x2000,
+	/// Base for unknown V4L2 MPEG controls
+	CC_V4L2_MPEG_BASE			= 0x3000,
+	/// Base for unknown V4L2 camera class controls
+	CC_V4L2_CAMERA_CLASS_BASE	= 0x4000,
 
 	// Logitech (USB vendor ID: 0x046d)
 	CC_LOGITECH_BASE = 0x046d0000,
