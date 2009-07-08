@@ -29,6 +29,15 @@ the addition of new controls or events is straightforward.
 Change log
 ----------
 
+0.1.2 (2009-07-08):
+- Update the controls to work better with the latest version of the UVC driver
+  that is part of the kernel.
+- Improved control handling by adding a list of well-known controls. This
+  allows libwebcam to recognize certain controls even if header files on the
+  build system do not match the current system.
+- Better handling of unknown control IDs.
+- Improved warning/error messages related to controls.
+
 0.1.1 (2008-01-29):
 - Added support the V4L2_CTRL_FLAG_READ_ONLY flag.
 - Added per handle tracking of the last system error and a new
@@ -82,7 +91,7 @@ instructions and how to contact the developers.
 Copyright and license
 ---------------------
 
-Copyright (c) 2006-2008 Logitech.
+Copyright (c) 2006-2009 Logitech.
 
 libwebcam is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published

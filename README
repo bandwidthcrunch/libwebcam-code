@@ -34,26 +34,29 @@ External dependencies:
 Important note on the uvcvideo dependency:
 
 Unless the USE_UVCVIDEO constant is disabled (it is enabled by default),
-libwebcam needs two header files from the Linux UVC driver. If you don't
-already have them on your hard disk, you can download them from the uvcvideo
+libwebcam needs one or two header files from the Linux UVC driver (uvcvideo).
+
+Starting with kernel 2.6.26 the uvcvideo driver is part of the kernel. You
+can find it in the directory drivers/media/video/uvc. If your kernel is older
+than that you may download a historic stand-alone version from the uvcvideo
 project's home page at http://linux-uvc.berlios.de/ or directly from the
 Subversion repository at:
 http://svn.berlios.de/svnroot/repos/linux-uvc/linux-uvc/trunk/
 
-You must copy or link uvcvideo.h and uvc_compat.h into the /Common/include/
-directory, e.g. using the following commands:
+Either way, you must copy or link uvcvideo.h into the /Common/include/
+directory, e.g. using the commands below. If you are compiling against the
+stand-alone version you need to do the same thing with uvc_compat.h.
 
 cd Common/include/
-ln -s ~/uvcvideo/trunk/uvcvideo.h
-ln -s ~/uvcvideo/trunk/uvc_compat.h
+ln -s /usr/src/linux-2.6.26/drivers/media/video/uvc/uvcvideo.h
 
-or
+or, for the stand-alone version:
 
 cd Common/include/
 wget http://svn.berlios.de/svnroot/repos/linux-uvc/linux-uvc/trunk/uvcvideo.h
 wget http://svn.berlios.de/svnroot/repos/linux-uvc/linux-uvc/trunk/uvc_compat.h
 
-Once you have those two files you can continue as normal.
+Once you have those files in place you can continue as normal.
 
 The uvcdynctrl directory ships with the two files cmdline.[ch]. As long as
 those are present, gnugetopt is not required. If they are missing, the build
@@ -61,7 +64,7 @@ system will try to create them with the help of gnugetopt.
 
 The build system is based on CMake. Because of the way CMake works, Makefiles
 do not ship with libwebcam, so you have to have CMake installed. Don't worry,
-though, you are likely to have a lot less illegible error messages than with
+though, you are likely to have much fewer illegible error messages than with
 the previous GNU Automake.
 
 Once you have CMake installed you can build and install it by running the
