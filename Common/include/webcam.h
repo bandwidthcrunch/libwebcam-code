@@ -168,6 +168,15 @@ typedef enum _CControlId {
 	/// This control is specific to Logitech cameras that support panning and
 	/// tilting such as the QuickCam Orbit series.
 	CC_LOGITECH_PANTILT_RESET,
+	// Illumination mode of the first LED.
+	CC_LOGITECH_LED1_MODE,
+	// Blinking frequency of the first LED.
+	CC_LOGITECH_LED1_FREQUENCY,
+	// Disable video processing (enable raw mode)
+	CC_LOGITECH_DISABLE_PROCESSING,
+	// Bits per pixel for raw (Bayer) mode
+	CC_LOGITECH_RAW_BITS_PER_PIXEL,
+
 
 } CControlId;
 

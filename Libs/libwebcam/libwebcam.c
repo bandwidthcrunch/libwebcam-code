@@ -1464,7 +1464,7 @@ static CResult refresh_control_list (Device *dev)
 				}
 			}
 #endif
-			// Prevent infinite loop for buggy NEXT_CTRL implementations
+			// Prevent infinite loops for buggy NEXT_CTRL implementations
 			if(r && v4l2_ctrl.id <= current_ctrl) {
 				// If there was an error but the driver failed to provide us with the ID
 				// of the next control, we have to manually increase the control ID,
@@ -1477,6 +1477,17 @@ static CResult refresh_control_list (Device *dev)
 						dev->v4l2_name);
 				goto next_control;
 			}
+			else if(!r && v4l2_ctrl.id == current_ctrl) {
+				// If there was no error but the driver did not increase the control ID
+				// we simply cancel the enumeration.
+				print_error(
+						"Error: The driver %s behind device %s has a buggy\n"
+						"  implementation of the V4L2_CTRL_FLAG_NEXT_CTRL flag. It does not raise an\n"
+						"  error or return the next control. Canceling control enumeration.",
+						dev->device.driver, dev->v4l2_name);
+				goto done;
+			}
+
 			current_ctrl = v4l2_ctrl.id;
 
 			// Skip failed and disabled controls
@@ -1754,6 +1765,18 @@ static CControlId get_control_id_from_v4l2 (int v4l2_id, Device *dev)
 #endif
 #ifdef V4L2_CID_PRIVACY
 		case V4L2_CID_PRIVACY:					return CC_PRIVACY;
+#endif
+#ifdef V4L2_CID_LED1_MODE
+		case V4L2_CID_LED1_MODE:				return CC_LOGITECH_LED1_MODE;
+#endif
+#ifdef V4L2_CID_LED1_FREQUENCY
+		case V4L2_CID_LED1_FREQUENCY:			return CC_LOGITECH_LED1_FREQUENCY;
+#endif
+#ifdef V4L2_CID_DISABLE_PROCESSING
+		case V4L2_CID_DISABLE_PROCESSING:		return CC_LOGITECH_DISABLE_PROCESSING;
+#endif
+#ifdef V4L2_CID_RAW_BITS_PER_PIXEL
+		case V4L2_CID_RAW_BITS_PER_PIXEL:		return CC_LOGITECH_RAW_BITS_PER_PIXEL;
 #endif
 	};
 
