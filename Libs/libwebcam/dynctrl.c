@@ -1257,6 +1257,9 @@ static CResult process_control (xmlNode *node_control, ParseContext *ctx)
 		node_request = xml_get_next_sibling_by_name(node_request, "request");
 	}
 
+	// Disable the UVC driver's caching mechanism for XU controls
+	xu_control->info.flags |= UVC_CONTROL_AUTO_UPDATE;
+
 	// Add the control to the UVC driver's control list
 	/*
 	printf(
