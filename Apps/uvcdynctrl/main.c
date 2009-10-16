@@ -598,6 +598,7 @@ main (int argc, char **argv)
 		// Resolve the control Id
 		CControlId controlId = get_control_id(handle, args_info.get_arg);
 		if(!controlId) {
+			res = 1;
 			print_handle_error(handle, "Unknown control specified", -1);
 			goto done;
 		}
@@ -615,10 +616,12 @@ main (int argc, char **argv)
 
 		// Parse the control value
 		if(args_info.inputs_num < 1) {
+			res = 3;
 			print_error("No control value specified", -1);
 			goto done;
 		}
 		if(parse_control_value(args_info.inputs[0], &value)) {
+			res = 2;
 			print_error("Invalid control value specified", -1);
 			goto done;
 		}
@@ -626,6 +629,7 @@ main (int argc, char **argv)
 		// Resolve the control Id
 		CControlId controlId = get_control_id(handle, args_info.set_arg);
 		if(!controlId) {
+			res = 1;
 			print_handle_error(handle, "Unknown control specified", -1);
 			goto done;
 		}
