@@ -13,7 +13,7 @@
 version=0.2
 
 # Run-time configuration
-xmlpath=/etc/uvcctrl
+xmlpath=/etc/udev/data
 debug=1
 uvcdynctrlpath=uvcdynctrl
 
