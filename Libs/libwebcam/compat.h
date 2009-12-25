@@ -31,6 +31,7 @@
 #include <linux/videodev2.h>
 
 #ifdef USE_UVCVIDEO
+#define __user
 #include <uvcvideo.h>
 #endif
 

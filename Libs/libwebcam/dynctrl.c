@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2006-2008 Logitech.
+ * Copyright (c) 2006-2009 Logitech.
  *
  * This file is part of libwebcam.
  * 
@@ -42,36 +42,16 @@
 #include "webcam.h"
 #include "libwebcam.h"
 
-#ifndef DISABLE_UVCVIDEO_DYNCTRL
+#ifdef ENABLE_UVCVIDEO_DYNCTRL
 
-#include "uvcvideo.h"
+#include "compat.h"
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 
 
 /*
- * Constants
- */
-
-/// Size of a GUID in bytes
-#define GUID_SIZE		16
-
-
-
-/*
  * Macros
  */
-
-/// Format string to print a GUID byte array with printf
-#define GUID_FORMAT		"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x"
-/// Argument macro to print a GUID byte array with printf
-#define GUID_ARGS(guid) \
-        (guid)[3],  (guid)[2],  (guid)[1],  (guid)[0], \
-        (guid)[5],  (guid)[4], \
-        (guid)[7],  (guid)[6], \
-        (guid)[8],  (guid)[9], \
-        (guid)[10], (guid)[11], (guid)[12], \
-        (guid)[13], (guid)[14], (guid)[15]
 
 /// Convert a single hex character into its numeric value
 #define HEX_DECODE_CHAR(c)		((c) >= '0' && (c) <= '9' ? (c) - '0' : (tolower(c)) - 'a' + 0xA)
@@ -443,6 +423,11 @@ static enum v4l2_ctrl_type get_v4l2_ctrl_type_by_name (const xmlChar *name)
 	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_BOOLEAN"))) {
 		type = V4L2_CTRL_TYPE_BOOLEAN;
 	}
+#ifdef ENABLE_RAW_CONTROLS
+	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_STRING"))) {
+		type = V4L2_CTRL_TYPE_STRING;
+	}
+#endif
 	/*
 	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_MENU"))) {
 		type = V4L2_CTRL_TYPE_MENU;
@@ -1671,6 +1656,8 @@ CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *i
 
 	if(!initialized)
 		return C_INIT_ERROR;
+	if(!file_name)
+		return C_INVALID_ARG;
 	
 	// Enumerate the devices and abort if there are no devices present
 	unsigned int size = 0, device_count = 0;

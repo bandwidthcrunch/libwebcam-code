@@ -62,8 +62,8 @@ HandleList handle_list;
  * Forward declarations
  */
 
-static void print_error (char *format, ...);
-static void print_c_error (CResult error, char *format, ...);
+void print_libwebcam_error (char *format, ...);
+static void print_libwebcam_c_error (CResult error, char *format, ...);
 
 static unsigned int get_control_dynamics_length(Device *device, unsigned int *names_length, unsigned int *choices_length);
 static Control *find_control_by_id (Device *dev, CControlId id);
@@ -110,7 +110,7 @@ CHandle c_open_device (const char *device_name)
 	const char *v4l2_name;
 
 	if(device_name == NULL || !initialized) {
-		print_error("Unable to open device. No name given or library not initialized.");
+		print_libwebcam_error("Unable to open device. No name given or library not initialized.");
 		return 0;
 	}
 
@@ -123,12 +123,12 @@ CHandle c_open_device (const char *device_name)
 	else if(strstr(device_name, "video") == device_name)
 		v4l2_name = device_name;
 	else {
-		print_error("Unable to open device '%s'. Unrecognized device name.", device_name);
+		print_libwebcam_error("Unable to open device '%s'. Unrecognized device name.", device_name);
 		return 0;
 	}
 	Device *device = find_device_by_name(v4l2_name);
 	if(device == NULL) {
-		print_error("Unable to open device '%s'. Device not found.", device_name);
+		print_libwebcam_error("Unable to open device '%s'. Device not found.", device_name);
 		return 0;
 	}
 
@@ -977,7 +977,7 @@ CResult c_get_control (CHandle hDevice, CControlId control_id, CControlValue *va
 		return C_CANNOT_READ;
 
 	// Read the control in a way that depends on its source
-	if(control->v4l2_control) {		// V4L2
+	if(control->v4l2_control) {			// V4L2
 		ret = read_v4l2_control(device, control, value, hDevice);
 	}
 	else {
@@ -1112,7 +1112,7 @@ char *c_get_handle_error_text (CHandle hDevice, CResult error)
 /**
  * Prints a generic error message to stderr.
  */
-static void print_error (char *format, ...)
+void print_libwebcam_error (char *format, ...)
 {
 	char *newformat;
 	va_list ap;
@@ -1137,7 +1137,7 @@ static void print_error (char *format, ...)
  * @param error		a #CResult error code whose error text is appended
  * @param format	a @a printf compatible format
  */
-static void print_c_error (CResult error, char *format, ...)
+static void print_libwebcam_c_error (CResult error, char *format, ...)
 {
 	char *unknown_text = "Unknown error";
 	char *text, *newformat;
@@ -1211,14 +1211,14 @@ static CResult create_control_choices (Control *ctrl, struct v4l2_queryctrl *v4l
 				// but { 1, 2, 4, 8 } instead.
 				if(v4l2_ctrl->id == V4L2_CID_EXPOSURE_AUTO && errno == EINVAL &&
 						v4l2_menu.index == 0) {
-					print_error(
+					print_libwebcam_error(
 						"Unsupported V4L2_CID_EXPOSURE_AUTO control with a non-contiguous \n"
 						"  range of choice IDs found");
 				}
 				else
 #endif
 				{
-					print_error(
+					print_libwebcam_error(
 						"Invalid menu control choice range encountered.\n"
 						"  Indicated range is [ %d .. %d ] but querying choice %d failed.",
 						v4l2_ctrl->minimum, v4l2_ctrl->maximum, v4l2_menu.index
@@ -1267,7 +1267,7 @@ done:
  * 		- NULL if an error occurred. The associated error can be found in @a pret.
  * 		- Pointer to the newly created control.
  */
-static Control *create_control (Device *device, struct v4l2_queryctrl *v4l2_ctrl, int v4l2_dev, CResult *pret)
+static Control *create_v4l2_control (Device *device, struct v4l2_queryctrl *v4l2_ctrl, int v4l2_dev, CResult *pret)
 {
 	CResult ret = C_SUCCESS;
 	Control *ctrl = NULL;
@@ -1278,16 +1278,19 @@ static Control *create_control (Device *device, struct v4l2_queryctrl *v4l2_ctrl
 		case V4L2_CTRL_TYPE_INTEGER:	type = CC_TYPE_DWORD;		break;
 		case V4L2_CTRL_TYPE_BOOLEAN:	type = CC_TYPE_BOOLEAN;		break;
 		case V4L2_CTRL_TYPE_MENU:		type = CC_TYPE_CHOICE;		break;
+#ifdef ENABLE_RAW_CONTROLS
+		case V4L2_CTRL_TYPE_STRING:		type = CC_TYPE_RAW;			break;
+#endif
 		case V4L2_CTRL_TYPE_BUTTON:		// TODO implement
 		case V4L2_CTRL_TYPE_INTEGER64:	// TODO implement
 			ret = C_NOT_IMPLEMENTED;
-			print_error("Warning: Unsupported V4L2 control type encountered: ctrl_id = 0x%08X, "
+			print_libwebcam_error("Warning: Unsupported V4L2 control type encountered: ctrl_id = 0x%08X, "
 					"name = '%s', type = %d",
 					v4l2_ctrl->id, v4l2_ctrl->name, v4l2_ctrl->type);
 			goto done;
 		default:
 			ret = C_PARSE_ERROR;
-			print_error("Invalid V4L2 control type encountered: ctrl_id = 0x%08X, "
+			print_libwebcam_error("Invalid V4L2 control type encountered: ctrl_id = 0x%08X, "
 					"name = '%s', type = %d",
 					v4l2_ctrl->id, v4l2_ctrl->name, v4l2_ctrl->type);
 			goto done;
@@ -1319,10 +1322,24 @@ static Control *create_control (Device *device, struct v4l2_queryctrl *v4l2_ctrl
 			ctrl->control.flags |= CC_IS_CUSTOM;
 		ctrl->control.def.value	= v4l2_ctrl->default_value;
 
-		// Process V4L2 menu-style controls
+		// Process V4L2 menu-style and raw controls
 		if(type == CC_TYPE_CHOICE) {
 			ret = create_control_choices(ctrl, v4l2_ctrl, v4l2_dev);
 			if(ret) goto done;
+		}
+		else if(type == CC_TYPE_RAW) {
+			if(v4l2_ctrl->minimum != v4l2_ctrl->maximum || v4l2_ctrl->step != 1) {
+				print_libwebcam_error("Unsupported V4L2 string control encountered: ctrl_id = 0x%08X, "
+					"name = '%s', min = %u, max = %u, step = %u",
+					v4l2_ctrl->id, v4l2_ctrl->name,
+					v4l2_ctrl->minimum, v4l2_ctrl->maximum, v4l2_ctrl->step);
+				ret = C_NOT_IMPLEMENTED;
+				goto done;
+			}
+			ctrl->control.value.raw.size =
+			ctrl->control.min.raw.size =
+			ctrl->control.max.raw.size =
+			ctrl->control.def.raw.size = v4l2_ctrl->maximum;
 		}
 		else {
 			ctrl->control.min.value		= v4l2_ctrl->minimum;
@@ -1341,6 +1358,10 @@ static Control *create_control (Device *device, struct v4l2_queryctrl *v4l2_ctrl
 
 done:
 	if(ret != C_SUCCESS && ctrl) {
+		if(ctrl->control.name) {
+			free(ctrl->control.name);
+			ctrl->control.name = NULL;
+		}
 		free(ctrl);
 		ctrl = NULL;
 	}
@@ -1470,7 +1491,7 @@ static CResult refresh_control_list (Device *dev)
 				// of the next control, we have to manually increase the control ID,
 				// otherwise we risk getting stuck querying the erroneous control.
 				current_ctrl++;
-				print_error(
+				print_libwebcam_error(
 						"Warning: The driver behind device %s has a slightly buggy implementation\n"
 						"  of the V4L2_CTRL_FLAG_NEXT_CTRL flag. It does not return the next higher\n"
 						"  control ID if a control query fails. A workaround has been enabled.",
@@ -1480,7 +1501,7 @@ static CResult refresh_control_list (Device *dev)
 			else if(!r && v4l2_ctrl.id == current_ctrl) {
 				// If there was no error but the driver did not increase the control ID
 				// we simply cancel the enumeration.
-				print_error(
+				print_libwebcam_error(
 						"Error: The driver %s behind device %s has a buggy\n"
 						"  implementation of the V4L2_CTRL_FLAG_NEXT_CTRL flag. It does not raise an\n"
 						"  error or return the next control. Canceling control enumeration.",
@@ -1494,10 +1515,10 @@ static CResult refresh_control_list (Device *dev)
 			if(r || v4l2_ctrl.flags & V4L2_CTRL_FLAG_DISABLED)
 				goto next_control;
 
-			Control *ctrl = create_control(dev, &v4l2_ctrl, v4l2_dev, &ret);
+			Control *ctrl = create_v4l2_control(dev, &v4l2_ctrl, v4l2_dev, &ret);
 			if(ctrl == NULL) {
 				if(ret == C_PARSE_ERROR || ret == C_NOT_IMPLEMENTED) {
-					print_error("Invalid or unsupported V4L2 control encountered: "
+					print_libwebcam_error("Invalid or unsupported V4L2 control encountered: "
 							"ctrl_id = 0x%08X, name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
 					ret = C_SUCCESS;
 				}
@@ -1540,10 +1561,10 @@ next_control:
 				continue;
 #endif
 
-			Control *ctrl = create_control(dev, &v4l2_ctrl, v4l2_dev, &ret);
+			Control *ctrl = create_v4l2_control(dev, &v4l2_ctrl, v4l2_dev, &ret);
 			if(ctrl == NULL) {
 				if(ret == C_PARSE_ERROR || ret == C_NOT_IMPLEMENTED) {
-					print_error("Invalid or unsupported V4L2 control encountered: "
+					print_libwebcam_error("Invalid or unsupported V4L2 control encountered: "
 							"ctrl_id = 0x%08X, name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
 					ret = C_SUCCESS;
 					continue;
@@ -1568,10 +1589,10 @@ next_control:
 			if(v4l2_ctrl.flags & V4L2_CTRL_FLAG_DISABLED)
 				continue;
 
-			Control *ctrl = create_control(dev, &v4l2_ctrl, v4l2_dev, &ret);
+			Control *ctrl = create_v4l2_control(dev, &v4l2_ctrl, v4l2_dev, &ret);
 			if(ctrl == NULL) {
 				if(ret == C_PARSE_ERROR || ret == C_NOT_IMPLEMENTED) {
-					print_error("Invalid or unsupported custom V4L2 control encountered: "
+					print_libwebcam_error("Invalid or unsupported custom V4L2 control encountered: "
 							"ctrl_id = 0x%08X, name = '%s'", v4l2_ctrl.id, v4l2_ctrl.name);
 					ret = C_SUCCESS;
 					continue;
@@ -1842,7 +1863,7 @@ static CControlId get_control_id_from_v4l2 (int v4l2_id, Device *dev)
 	// after libwebcam compilation time.
 	if(V4L2_CTRL_ID2CLASS(v4l2_id) == V4L2_CTRL_CLASS_USER) {
 		// Unknown user control
-		print_error(
+		print_libwebcam_error(
 			"Unknown V4L2 user control ID encountered: 0x%08X (V4L2_CID_USER_BASE + %d)",
 			v4l2_id, v4l2_id - V4L2_CID_USER_BASE
 		);
@@ -1850,7 +1871,7 @@ static CControlId get_control_id_from_v4l2 (int v4l2_id, Device *dev)
 	}
 	else if(V4L2_CTRL_ID2CLASS(v4l2_id) == V4L2_CTRL_CLASS_MPEG) {
 		// Unknown MPEG control
-		print_error(
+		print_libwebcam_error(
 			"Unknown V4L2 MPEG control ID encountered: 0x%08X (V4L2_CID_MPEG_BASE + %d)",
 			v4l2_id, v4l2_id - V4L2_CID_MPEG_BASE
 		);
@@ -1858,7 +1879,7 @@ static CControlId get_control_id_from_v4l2 (int v4l2_id, Device *dev)
 	}
 	else if(V4L2_CTRL_ID2CLASS(v4l2_id) == V4L2_CTRL_CLASS_CAMERA) {
 		// Unknown camera class (UVC) control
-		print_error(
+		print_libwebcam_error(
 			"Unknown V4L2 camera class (UVC) control ID encountered: 0x%08X (V4L2_CID_CAMERA_CLASS_BASE + %d)",
 			v4l2_id, v4l2_id - V4L2_CID_CAMERA_CLASS_BASE
 		);
@@ -1866,14 +1887,14 @@ static CControlId get_control_id_from_v4l2 (int v4l2_id, Device *dev)
 	}
 	else if(v4l2_id >= V4L2_CID_PRIVATE_BASE) {
 		// Unknown private control
-		print_error(
+		print_libwebcam_error(
 			"Unknown V4L2 private control ID encountered: 0x%08X (V4L2_CID_PRIVATE_BASE + %d)",
 			v4l2_id, v4l2_id - V4L2_CID_PRIVATE_BASE
 		);
 		return CC_V4L2_CUSTOM_BASE + (v4l2_id - V4L2_CID_PRIVATE_BASE);
 	}
 
-	print_error("Unknown V4L2 control ID encountered: 0x%08X", v4l2_id);
+	print_libwebcam_error("Unknown V4L2 control ID encountered: 0x%08X", v4l2_id);
 	return 0;
 }
 
@@ -2077,7 +2098,7 @@ static CResult refresh_device_list (void)
 					// continues. This is necessary because V4L1 devices will let
 					// refresh_device_details fail as they don't understand VIDIOC_QUERYCAP.
 					if(ret == C_V4L2_ERROR) {
-						print_error(
+						print_libwebcam_error(
 								"Warning: The driver behind device %s does not seem to support V4L2.",
 								dev->v4l2_name);
 						ret = C_SUCCESS;
@@ -2102,7 +2123,7 @@ done:
 		closedir(v4l_dir);
 	unlock_mutex(&device_list.mutex);
 	if(ret)
-		print_c_error(ret, "Unable to refresh device list.");
+		print_libwebcam_c_error(ret, "Unable to refresh device list.");
 	return ret;
 }
 
@@ -2148,15 +2169,47 @@ static CResult read_v4l2_control(Device *device, Control *control, CControlValue
 	if(!v4l2_dev)
 		return C_INVALID_DEVICE;
 
-	struct v4l2_control v4l2_ctrl = { .id = control->v4l2_control };
-	if(ioctl(v4l2_dev, VIDIOC_G_CTRL, &v4l2_ctrl)) {
-		ret = C_V4L2_ERROR;
-		set_last_error(hDevice, errno);
-		goto done;
+#ifdef ENABLE_RAW_CONTROLS
+	if(control->control.type == CC_TYPE_RAW) {
+		unsigned int ctrl_size = control->control.max.raw.size;
+
+		if(value->raw.data == NULL)
+			return C_INVALID_ARG;
+		if(value->raw.size < ctrl_size)
+			return C_INVALID_ARG;
+
+		struct v4l2_ext_control v4l2_ext_ctrl = {
+			.id		= control->v4l2_control,
+			.size	= ctrl_size,
+		};
+		v4l2_ext_ctrl.string = value->raw.data;
+		struct v4l2_ext_controls v4l2_ext_ctrls = {
+			.ctrl_class	= V4L2_CTRL_CLASS_USER,
+			.count		= 1,
+			.controls	= &v4l2_ext_ctrl
+		};
+		if(ioctl(v4l2_dev, VIDIOC_G_EXT_CTRLS, &v4l2_ext_ctrls)) {
+			ret = C_V4L2_ERROR;
+			set_last_error(hDevice, errno);
+			goto done;
+		}
+
+		// Set the raw data size to the size of the control
+		value->raw.size = ctrl_size;
+	}
+	else
+#endif
+	{
+		struct v4l2_control v4l2_ctrl = { .id = control->v4l2_control };
+		if(ioctl(v4l2_dev, VIDIOC_G_CTRL, &v4l2_ctrl)) {
+			ret = C_V4L2_ERROR;
+			set_last_error(hDevice, errno);
+			goto done;
+		}
+		value->value	= v4l2_ctrl.value;
 	}
 
 	value->type		= control->control.type;
-	value->value	= v4l2_ctrl.value;
 
 done:
 	close(v4l2_dev);
@@ -2178,15 +2231,45 @@ static CResult write_v4l2_control(Device *device, Control *control, const CContr
 	if(!v4l2_dev)
 		return C_INVALID_DEVICE;
 
-	struct v4l2_control v4l2_ctrl = {
-		.id		= control->v4l2_control,
-		.value	= value->value
-	};
-	if(ioctl(v4l2_dev, VIDIOC_S_CTRL, &v4l2_ctrl)) {
-		ret = C_V4L2_ERROR;
-		set_last_error(hDevice, errno);
+#ifdef ENABLE_RAW_CONTROLS
+	if(control->control.type == CC_TYPE_RAW) {
+		unsigned int ctrl_size = control->control.max.raw.size;
+
+		if(value->raw.data == NULL)
+			return C_INVALID_ARG;
+		if(value->raw.size < ctrl_size)
+			return C_INVALID_ARG;
+
+		struct v4l2_ext_control v4l2_ext_ctrl = {
+			.id		= control->v4l2_control,
+			.size	= ctrl_size,
+		};
+		v4l2_ext_ctrl.string = value->raw.data;
+		struct v4l2_ext_controls v4l2_ext_ctrls = {
+			.ctrl_class	= V4L2_CTRL_CLASS_USER,
+			.count		= 1,
+			.controls	= &v4l2_ext_ctrl
+		};
+		if(ioctl(v4l2_dev, VIDIOC_S_EXT_CTRLS, &v4l2_ext_ctrls)) {
+			ret = C_V4L2_ERROR;
+			set_last_error(hDevice, errno);
+			goto done;
+		}
+	}
+	else
+#endif
+	{
+		struct v4l2_control v4l2_ctrl = {
+			.id		= control->v4l2_control,
+			.value	= value->value
+		};
+		if(ioctl(v4l2_dev, VIDIOC_S_CTRL, &v4l2_ctrl)) {
+			ret = C_V4L2_ERROR;
+			set_last_error(hDevice, errno);
+		}
 	}
 
+done:
 	close(v4l2_dev);
 	return ret;
 }
@@ -2283,7 +2366,7 @@ static CHandle create_handle(Device *device)
 	if(device == NULL)
 		return 0;
 	if(handle == 0) {
-		print_error("No free device handles left. Unable to create handle "
+		print_libwebcam_error("No free device handles left. Unable to create handle "
 				"for device '%s'.", device->v4l2_name);
 		return 0;
 	}

@@ -32,23 +32,35 @@
 
 
 /*
- * Constants
+ * Features
  */
 
 /// Whether private controls of the Linux UVC driver should be used or not
 #define	USE_UVCVIDEO
+#ifdef USE_UVCVIDEO
 
-/// Whether or not to include the automatically generated Logitech dynamic controls
-/// header file.
-#define USE_LOGITECH_DYNCTRL
+	/// Whether to compile in support functions for the Linux UVC driver's dynamic
+	/// controls.
+	#define	ENABLE_UVCVIDEO_DYNCTRL
+	#ifdef	ENABLE_UVCVIDEO_DYNCTRL
 
-/// Whether to compile in support functions for the Linux UVC driver's dynamic
-/// controls.
-#undef	DISABLE_UVCVIDEO_DYNCTRL
-// There is no dynctrl support without uvcvideo support
-#ifndef USE_UVCVIDEO
-	#define	DISABLE_UVCVIDEO_DYNCTRL
+		/// Whether to include the automatically generated Logitech dynamic controls
+		/// header file.
+		#define USE_LOGITECH_DYNCTRL
+
+		/// Whether to include support for raw controls.
+		/// Note that this requires V4L2_CTRL_TYPE_STRING to be available (i.e. V4L2 >= 2.6.32).
+		/// This is disabled by default but CMake enables it if it finds V4L2_CTRL_TYPE_STRING.
+		//#define ENABLE_RAW_CONTROLS
+
+	#endif
+
 #endif
+
+
+/*
+ * Constants
+ */
 
 /// Whether to use the V4L2_CTRL_FLAG_NEXT_CTRL flag when enumerating V4L2 controls
 #define	ENABLE_V4L2_ADVANCED_CONTROL_ENUMERATION
@@ -72,6 +84,9 @@
 /// This is a workaround for faulty devices.
 #define	CONTROL_IO_ERROR_RETRIES		2
 
+/// Size of a GUID in bytes
+#define GUID_SIZE		16
+
 
 
 /*
@@ -93,6 +108,17 @@
 #define MAKE_FOURCC(c1,c2,c3,c4) \
 	(unsigned int)((long)c1 | (long)c2 << 8 | (long)c3 << 16 | (long)c4 << 24)
 
+/// Format string to print a GUID byte array with printf
+#define GUID_FORMAT		"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x"
+/// Argument macro to print a GUID byte array with printf
+#define GUID_ARGS(guid) \
+        (guid)[3],  (guid)[2],  (guid)[1],  (guid)[0], \
+        (guid)[5],  (guid)[4], \
+        (guid)[7],  (guid)[6], \
+        (guid)[8],  (guid)[9], \
+        (guid)[10], (guid)[11], (guid)[12], \
+        (guid)[13], (guid)[14], (guid)[15]
+
 
 
 /*
@@ -105,7 +131,7 @@
 typedef struct _Control {
 	/// Control description
 	CControl		control;
-	/// V4L2 ioctl mapping
+	/// V4L2 ioctl mapping (non-0 for V4L2 controls)
 	int				v4l2_control;
 	/// Pointer to the next control in the list
 	struct _Control	* next;
@@ -202,6 +228,7 @@ typedef struct _HandleList {
 extern int initialized;
 extern HandleList handle_list;
 
+extern void print_error (char *format, ...);
 extern int open_v4l2_device(char *device_name);
 
 
