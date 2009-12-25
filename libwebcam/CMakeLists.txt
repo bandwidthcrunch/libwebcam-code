@@ -45,7 +45,7 @@ else (HAS_V4L2_STRING_CONTROLS)
 endif (HAS_V4L2_STRING_CONTROLS)
 
 # Includes
-include_directories (include ${LIBXML2_INCLUDE_DIRS} ${UVCVIDEO_INCLUDE_DIR} ../Common/include)
+include_directories (include ${LIBXML2_INCLUDE_DIRS} ${UVCVIDEO_INCLUDE_DIR} ../common/include)
 
 # Libraries
 target_link_libraries (webcam ${LIBXML2_LIBRARIES})
