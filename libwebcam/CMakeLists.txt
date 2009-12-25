@@ -112,32 +112,35 @@ set (CPACK_PACKAGE_FILE_NAME			"${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-$
 set (CPACK_DEBIAN_PACKAGE_MAINTAINER	"Martin Rubli <martin_rubli@logitech.com>")
 set (CPACK_DEBIAN_PACKAGE_DEPENDS		"libxml2 (>= 2.6.27), libc6 (>= 2.4)")
 
-# Instead of actually packing we just generate a CPack configuration file.
-#include (CPack)
-if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../CPackConfig.cmake.conf")
+# Instead of actually packing we just generate a CPack configuration file. The top level
+# README file explains how to package the project.
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../common/build/CPackConfig.cmake.conf")
+	message ("** Creating CPack configuration file for ${CPACK_PACKAGE_NAME} ...")
 	configure_file (
-		${CMAKE_CURRENT_SOURCE_DIR}/../CPackConfig.cmake.conf
+		${CMAKE_CURRENT_SOURCE_DIR}/../common/build/CPackConfig.cmake.conf
 		${CMAKE_CURRENT_BINARY_DIR}/CPackConfig.cmake
 	)
-endif (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../CPackConfig.cmake.conf")
+endif (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../common/build/CPackConfig.cmake.conf")
 
 # Source packaging
 # Note that we only enable source packaging if we're not building from the top-level
 # directory. The reason for this is that source packaging at the top-level includes
 # the entire tree by default and exclude patterns are not suitable in our case.
-SET (CPACK_SOURCE_GENERATOR				"TBZ2")
-SET (CPACK_SOURCE_PACKAGE_FILE_NAME		"${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
-# The following is a list of semicolon separate regexp patterns of files and
-# directories to ignore. Regexp anchors like ^ and $ can be used but because
-# CPack matches entire paths ^ won't work for file matching. We can use / on
-# the left-hand side instead. Also note that backslashes need to be double-
-# escaped (i.e. \\\\). Therefore Perl's \. to match a dot becomes \\\\. here.
-SET (CPACK_SOURCE_IGNORE_FILES
-	"/\\\\.svn/"								# Subversion directories
-	"/\\\\..+$"									# Hidden files and directories
-	"build;debug;release"						# Build directories
-	"tags;/doxygen-output;Makefile;rules.mk"	# Misc
-)
 if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+	set (CPACK_SOURCE_GENERATOR				"TBZ2")
+	set (CPACK_SOURCE_PACKAGE_FILE_NAME		"${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
+
+	# The following is a list of semicolon separate regexp patterns of files and
+	# directories to ignore. Regexp anchors like ^ and $ can be used but because
+	# CPack matches entire paths ^ won't work for file matching. We can use / on
+	# the left-hand side instead. Also note that backslashes need to be double-
+	# escaped (i.e. \\\\). Therefore Perl's \. to match a dot becomes \\\\. here.
+	set (CPACK_SOURCE_IGNORE_FILES
+		"/\\\\.svn/"								# Subversion directories
+		"/\\\\..+$"									# Hidden files and directories
+		"build"										# Build directories
+		"tags;/doxygen-output"						# Misc
+	)
+
 	include (CPack)
 endif (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
