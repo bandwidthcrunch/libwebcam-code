@@ -36,7 +36,7 @@ endif (NOT UVCVIDEO_INCLUDE_DIR)
 message("** Found Linux UVC Driver sources: ${UVCVIDEO_INCLUDE_DIR}")
 
 # Check V4L2
-try_compile (HAS_V4L2_STRING_CONTROLS ${CMAKE_BINARY_DIR}/ ${CMAKE_CURRENT_SOURCE_DIR}/CMakeTryV4L2.c)
+try_compile (HAS_V4L2_STRING_CONTROLS ${CMAKE_BINARY_DIR}/ ${CMAKE_CURRENT_SOURCE_DIR}/../common/build/cmake_try_v4l2_ctrl_type_string.c)
 if (HAS_V4L2_STRING_CONTROLS)
 	message("** Your V4L2 has V4L2_CTRL_TYPE_STRING support. Enabling raw control support.")
 	add_definitions (-DENABLE_RAW_CONTROLS)
