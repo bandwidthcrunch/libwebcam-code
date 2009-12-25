@@ -11,5 +11,5 @@ cmake_minimum_required (VERSION 2.6)
 # SUBDIRECTORIES
 #
 
-add_subdirectory (Libs)
-add_subdirectory (Apps)
+add_subdirectory (libwebcam)
+add_subdirectory (uvcdynctrl)
