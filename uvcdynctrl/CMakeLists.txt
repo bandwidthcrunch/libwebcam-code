@@ -71,7 +71,7 @@ install (
 # udev rules, script, and data
 # Default permissions for DIRECTORY files: rw-r--r--
 # Default permissions for PROGRAMS files:  rwxr-xr-x
-# TODO fix error during stand-alone packaging
+# Note that having absolute paths here requires CPACK_SET_DESTDIR to be set to "ON".
 install (
 	DIRECTORY	udev/rules/
 	DESTINATION /etc/udev/rules.d
@@ -115,6 +115,7 @@ set (CPACK_PACKAGE_DESCRIPTION			"Command line tool to obtain and change camera 
 set (CPACK_PACKAGE_VENDOR				"Logitech")
 set (CPACK_PACKAGE_VERSION				"${UVCDYNCTRL_VERSION}")
 set (CPACK_PACKAGE_FILE_NAME			"${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
+set (CPACK_SET_DESTDIR					"ON")	# Necessary because of the absolute install paths
 
 # Debian
 # The dependencies are obtained by extracting the (dependency lacking) .deb package
