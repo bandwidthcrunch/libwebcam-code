@@ -24,13 +24,23 @@ set_target_properties (uvcdynctrl PROPERTIES VERSION 0.2.0)
 #
 
 # gengetopt for command line parsing
-add_custom_command (
-	OUTPUT		${CMAKE_CURRENT_SOURCE_DIR}/cmdline.c ${CMAKE_CURRENT_SOURCE_DIR}/cmdline.h
-	COMMAND		gengetopt -i ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.ggo --output-dir ${CMAKE_CURRENT_SOURCE_DIR} --unamed-opts=VALUES
-	DEPENDS 	${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.ggo
-	COMMENT		"Generating getopt parser code (cmdline.*) ..."
-	VERBATIM
-)
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmdline.c" AND NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmdline.h")
+	message("** Command line parser source files not found. Creating gengetopt rules ...")
+
+	# Check if gengetopt is installed
+	find_program(GENGETOPT gengetopt)
+	if (NOT GENGETOPT)
+		message(FATAL_ERROR "Unable to find gengetopt")
+	endif (NOT GENGETOPT)
+
+	add_custom_command (
+		OUTPUT		${CMAKE_CURRENT_SOURCE_DIR}/cmdline.c ${CMAKE_CURRENT_SOURCE_DIR}/cmdline.h
+		COMMAND		gengetopt -i ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.ggo --output-dir ${CMAKE_CURRENT_SOURCE_DIR} --unamed-opts=VALUES
+		DEPENDS 	${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.ggo
+		COMMENT		"Generating getopt parser code (cmdline.*) ..."
+		VERBATIM
+	)
+endif (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmdline.c" AND NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmdline.h")
 
 # config.h
 # Note how we define HAVE_CONFIG_H. This will let gengetopt pick up
