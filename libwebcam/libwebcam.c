@@ -2269,7 +2269,9 @@ static CResult write_v4l2_control(Device *device, Control *control, const CContr
 		}
 	}
 
+#ifdef ENABLE_RAW_CONTROLS
 done:
+#endif
 	close(v4l2_dev);
 	return ret;
 }
