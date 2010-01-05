@@ -1,7 +1,20 @@
-#!/bin/sh
-rm -f doxygen/default.cfg &&
-ln -s libwebcam.cfg doxygen/default.cfg &&
-rm -rf doxygen-output &&
-mkdir -p doxygen-output/libwebcam &&
-make doxygen-doc &&
-cp -v doxygen/res/* doxygen-output/libwebcam/html/
+#!/bin/bash
+
+set -e
+
+export SRCDIR="."
+export DOCDIR="./doxygen-output"
+export CONFIG="doxygen/libwebcam.cfg"
+
+echo "Cleaning up output directory '$DOCDIR' ..."
+rm -rf $DOCDIR
+echo -e "Done.\n"
+
+echo "Generating Doxygen documentation using configuration file '$CONFIG' ..."
+mkdir -p $DOCDIR
+doxygen $CONFIG
+echo -e "Done.\n"
+
+echo "Copying extra resource files ..."
+cp -v doxygen/res/* $DOCDIR/libwebcam/html/
+echo -e "Done.\n"
