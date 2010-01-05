@@ -52,7 +52,7 @@ target_link_libraries (webcam ${LIBXML2_LIBRARIES})
 
 # Compiler flags
 set_target_properties (webcam PROPERTIES
-	COMPILE_FLAGS "-Wall -Wno-unused -Wno-missing-field-initializers"
+	COMPILE_FLAGS "-Wall -Wno-unused"
 )
 
 
