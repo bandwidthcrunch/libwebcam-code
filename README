@@ -50,10 +50,18 @@ Linux UVC driver (uvcvideo) source files:
   http://svn.berlios.de/svnroot/repos/linux-uvc/linux-uvc/trunk/
 
   Either way, you need to add the path where uvcvideo.h is located to the
-  CMAKE_INCLUDE_PATH environment variable before calling cmake unless it is
-  already located in one of your default include directories. You can either
-  set and export the variable or call CMake as follows:
+  CMAKE_INCLUDE_PATH variable before calling cmake unless it is already located
+  in one of your default include directories. You can use either of the three
+  following methods to do so:
 
+  # Method 1: Set the include path via a CMake parameter
+  cmake -DCMAKE_INCLUDE_PATH=.../linux/drivers/media/video/uvc ..
+
+  # Method 2: Set the include path through an exported environment variable:
+  export CMAKE_INCLUDE_PATH=.../linux/drivers/media/video/uvc
+  cmake ..
+
+  # Method 3: Set the include path through a temporary environment variable:
   CMAKE_INCLUDE_PATH=.../linux/drivers/media/video/uvc cmake ..
 
 gengetopt (optional):
