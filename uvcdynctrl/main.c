@@ -2,7 +2,7 @@
  * uvcdynctrl - Manage dynamic controls in uvcvideo
  *
  *
- * Copyright (c) 2006-2008 Logitech.
+ * Copyright (c) 2006-2010 Logitech.
  *
  * This file is part of uvcdynctrl.
  * 
@@ -23,6 +23,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <linux/types.h>
+
+#define __user
+#include <media.h>
 
 #include "cmdline.h"
 #include "controls.h"
@@ -418,6 +429,101 @@ done:
 
 
 static CResult
+list_entities (CDevice *device)
+{
+	assert(device != NULL);
+
+	int device_index = -1;
+	if(sscanf(device->shortName, "video%u", &device_index) != 1)
+		return C_INVALID_ARG;
+
+	char media_path[32] = { 0 };
+	sprintf(media_path, "/dev/media%u", device_index);
+	printf("    Media controller device: %s\n", media_path);
+
+	int mcdev = open(media_path, O_RDWR);
+	if(mcdev == -1) {
+		printf("ERROR: Unable to open media controller device '%s': %s (Error: %d)\n", media_path, strerror(errno), errno);
+		return C_INVALID_DEVICE;
+	}
+
+	int r = 0;
+	struct media_user_entity entity;
+	memset(&entity, 0, sizeof(entity));
+	entity.id = 1;
+	while((r = ioctl(mcdev, MEDIA_IOC_ENUM_ENTITIES, &entity)) == 0) {
+		printf(
+			"    Entity %u: %s. Type: %u, Subtype: %u, Pads: %u, Links: %u\n",
+			entity.id, entity.name, entity.type, entity.subtype, entity.pads, entity.links
+		);
+
+		switch(entity.type) {
+			case MEDIA_ENTITY_TYPE_NODE:
+				switch(entity.subtype) {
+					case MEDIA_NODE_TYPE_V4L:
+						printf("      Node: v4l: { major: %u, minor: %u }\n", entity.v4l.major, entity.v4l.minor);
+						break;
+					case MEDIA_NODE_TYPE_FB:
+						printf("      Node: fb: { major: %u, minor: %u }\n", entity.fb.major, entity.fb.minor);
+						break;
+					case MEDIA_NODE_TYPE_ALSA:
+						printf("      Node: alsa: %u\n", entity.alsa);
+						break;
+					case MEDIA_NODE_TYPE_DVB:
+						printf("      Node: dvb: %u\n", entity.dvb);
+						break;
+				}
+				break;
+
+			case MEDIA_ENTITY_TYPE_SUBDEV:
+				printf("      Subdevice\n");
+				break;
+		}
+
+		struct media_user_links links;
+		memset(&links, 0, sizeof(links));
+		links.entity = entity.id;
+		links.pads = (struct media_user_pad *)calloc(entity.pads, sizeof(struct media_user_pad));
+		links.links = (struct media_user_link *)calloc(entity.links, sizeof(struct media_user_link));
+
+		r = ioctl(mcdev, MEDIA_IOC_ENUM_LINKS, &links);
+		if(r == 0) {
+			for(int i = 0; i < entity.pads; i++) {
+				struct media_user_pad *pelem = &links.pads[i];
+				printf(
+					"      Pad %u, Type: %u\n",
+					pelem->index, pelem->type
+				);
+			}
+
+			for(int i = 0; i < entity.links; i++) {
+				struct media_user_link *lelem = &links.links[i];
+				printf(
+					"      Out link: Source pad { Entity: %u, Index: %u, Type: %u } => "
+					"Sink pad { Entity: %u, Index: %u, Type: %u }\n",
+					lelem->source.entity, lelem->source.index, lelem->source.type,
+					lelem->sink.entity, lelem->sink.index, lelem->sink.type
+				);
+			}
+		}
+		else {
+			printf("ERROR: Unable to enumerate links for entity %u: %s (Error: %d)\n", entity.id, strerror(errno), errno);
+		}
+
+		free(links.links);
+		links.links = NULL;
+		free(links.pads);
+		links.pads = NULL;
+
+		entity.id++;
+	}
+
+	close(mcdev);
+	return C_SUCCESS;
+}
+
+
+static CResult
 list_devices ()
 {
 	CResult ret;
@@ -453,6 +559,12 @@ list_devices ()
 	for(int i = 0; i < count; i++) {
 		CDevice *device = &devices[i];
 		print_device(device);
+
+		ret = list_entities(device);
+		if(ret != C_SUCCESS && ret != C_INVALID_ARG) {
+			print_error("Unable to list device entities", ret);
+			ret = C_SUCCESS;
+		}
 	}
 
 done:

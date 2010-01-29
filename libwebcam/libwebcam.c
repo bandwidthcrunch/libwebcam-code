@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2006-2008 Logitech.
+ * Copyright (c) 2006-2010 Logitech.
  *
  * This file is part of libwebcam.
  *
@@ -121,6 +121,8 @@ CHandle c_open_device (const char *device_name)
 	if(strstr(device_name, "/dev/video") == device_name)
 		v4l2_name = &device_name[5];
 	else if(strstr(device_name, "video") == device_name)
+		v4l2_name = device_name;
+	else if(strstr(device_name, "subdev") == device_name)
 		v4l2_name = device_name;
 	else {
 		print_libwebcam_error("Unable to open device '%s'. Unrecognized device name.", device_name);
@@ -1629,15 +1631,18 @@ static CResult refresh_device_details (Device *dev)
 		if(v4l2_cap.card[0])
 			dev->device.name = strdup((char *)v4l2_cap.card);
 		else
-			dev->device.name = dev->v4l2_name;
+			dev->device.name = dev->v4l2_name;	// strdup?!
 		dev->device.driver = strdup((char *)v4l2_cap.driver);
 		if(v4l2_cap.bus_info[0])
 			dev->device.location = strdup((char *)v4l2_cap.bus_info);
 		else
-			dev->device.location = dev->v4l2_name;
+			dev->device.location = dev->v4l2_name;	// strdup?!
 	}
 	else {
-		ret = C_V4L2_ERROR;
+		//ret = C_V4L2_ERROR;
+		dev->device.name = strdup(dev->v4l2_name);
+		dev->device.driver = strdup("uvcvideo");
+		dev->device.location = strdup(dev->v4l2_name);
 	}
 
 	close(v4l2_dev);
@@ -2073,7 +2078,8 @@ static CResult refresh_device_list (void)
 	if(v4l_dir) {
 		while((dir_entry = readdir(v4l_dir))) {
 			// Ignore non-video devices
-			if(strstr(dir_entry->d_name, "video") != dir_entry->d_name)
+			if(strstr(dir_entry->d_name, "video") != dir_entry->d_name &&
+					strstr(dir_entry->d_name, "subdev") != dir_entry->d_name)
 				continue;
 
 			Device *dev = find_device_by_name(dir_entry->d_name);
