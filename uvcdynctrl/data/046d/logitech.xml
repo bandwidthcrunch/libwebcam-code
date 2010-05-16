@@ -395,7 +395,11 @@
 			</uvc>
 			<v4l2>
 				<id>V4L2_CID_LED1_MODE</id>
-				<v4l2_type>V4L2_CTRL_TYPE_INTEGER</v4l2_type>
+				<v4l2_type>V4L2_CTRL_TYPE_MENU</v4l2_type>
+				<menu_entry name="Off" value="0"/>
+				<menu_entry name="On" value="1"/>
+				<menu_entry name="Blinking" value="2"/>
+				<menu_entry name="Auto" value="3"/>
 			</v4l2>
 		</mapping>
 		
