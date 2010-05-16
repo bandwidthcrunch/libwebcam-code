@@ -423,6 +423,9 @@ static enum v4l2_ctrl_type get_v4l2_ctrl_type_by_name (const xmlChar *name)
 	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_BOOLEAN"))) {
 		type = V4L2_CTRL_TYPE_BOOLEAN;
 	}
+	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_BUTTON"))) {
+		type = V4L2_CTRL_TYPE_BUTTON;
+	}
 #ifdef ENABLE_RAW_CONTROLS
 	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_STRING"))) {
 		type = V4L2_CTRL_TYPE_STRING;
@@ -431,9 +434,6 @@ static enum v4l2_ctrl_type get_v4l2_ctrl_type_by_name (const xmlChar *name)
 	/*
 	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_MENU"))) {
 		type = V4L2_CTRL_TYPE_MENU;
-	}
-	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_BUTTON"))) {
-		type = V4L2_CTRL_TYPE_BUTTON;
 	}
 	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_INTEGER64"))) {
 		type = V4L2_CTRL_TYPE_INTEGER64;
