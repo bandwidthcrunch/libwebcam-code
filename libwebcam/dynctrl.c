@@ -426,15 +426,15 @@ static enum v4l2_ctrl_type get_v4l2_ctrl_type_by_name (const xmlChar *name)
 	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_BUTTON"))) {
 		type = V4L2_CTRL_TYPE_BUTTON;
 	}
+	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_MENU"))) {
+		type = V4L2_CTRL_TYPE_MENU;
+	}
 #ifdef ENABLE_RAW_CONTROLS
 	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_STRING"))) {
 		type = V4L2_CTRL_TYPE_STRING;
 	}
 #endif
 	/*
-	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_MENU"))) {
-		type = V4L2_CTRL_TYPE_MENU;
-	}
 	else if(xmlStrEqual(name, BAD_CAST("V4L2_CTRL_TYPE_INTEGER64"))) {
 		type = V4L2_CTRL_TYPE_INTEGER64;
 	}
@@ -1089,6 +1089,66 @@ static CResult process_mapping (const xmlNode *node_mapping, ParseContext *ctx)
 		return C_PARSE_ERROR;
 	}
 	mapping_info.data_type = uvc_type;
+	
+	if(v4l2_type == V4L2_CTRL_TYPE_MENU) {
+		xmlNode *node_menu = xml_get_first_child_by_name(node_v4l2, "menu_entry");
+		if(!node_menu) {
+			add_error_at_node(ctx, node_v4l2,
+				"<menu_entry> is mandatory for mappings with a v4l2_type of V4L2_CTRL_TYPE_MENU");
+			return C_PARSE_ERROR;
+		}
+
+		mapping_info.menu_count = 1;
+		while ((node_menu = xml_get_next_sibling_by_name(node_menu, "menu_entry")))
+			mapping_info.menu_count++;
+
+		mapping_info.menu_info =
+			malloc(mapping_info.menu_count * sizeof(struct uvc_menu_info));
+		if(!mapping_info.menu_info)
+			return C_NO_MEMORY;
+
+		int i;
+		node_menu = xml_get_first_child_by_name(node_v4l2, "menu_entry");
+		for (i = 0; i < mapping_info.menu_count; i++) {
+			xmlChar *menu_name_uni = xmlGetProp(node_menu, BAD_CAST("name"));
+			char *menu_name_asc = UNICODE_TO_NORM_ASCII(menu_name_uni);
+			if(!menu_name_asc) {
+				add_error_at_node(ctx, node_menu,
+					"Invalid menu_entry. 'name' attribute is mandatory.");
+				free(mapping_info.menu_info);
+				return C_PARSE_ERROR;
+			}
+
+			xmlChar *menu_value = xmlGetProp(node_menu, BAD_CAST("value"));
+			if(!menu_value) {
+				add_error_at_node(ctx, node_menu,
+					"Invalid menu_entry. 'value' attribute is mandatory.");
+				xmlFree(menu_name_uni);
+				free(menu_name_asc);
+				free(mapping_info.menu_info);
+				return C_PARSE_ERROR;
+			}
+
+			snprintf((char *)mapping_info.menu_info[i].name,
+				 sizeof(mapping_info.menu_info[i].name),
+				 "%s", menu_name_asc);
+			ret = lookup_or_convert_to_integer(menu_value,
+				(int *)&mapping_info.menu_info[i].value,
+				ctx);
+			if(ret)
+				add_error_at_node(ctx, node_menu,
+					"<menu_entry> value contains invalid number or references unknown constant: '%s'",
+					menu_value);
+			xmlFree(menu_value);
+			xmlFree(menu_name_uni);
+			free(menu_name_asc);
+			if(ret) {
+				free(mapping_info.menu_info);
+				return C_PARSE_ERROR;
+			}
+			node_menu = xml_get_next_sibling_by_name(node_menu, "menu_entry");
+		}
+	}
 
 	// Add the control to the UVC driver's control list
 	/*
@@ -1114,6 +1174,7 @@ static CResult process_mapping (const xmlNode *node_mapping, ParseContext *ctx)
 	);
 	*/
 	int v4l2_ret = ioctl(ctx->v4l2_handle, UVCIOC_CTRL_MAP, &mapping_info);
+	free(mapping_info.menu_info);
 	if(v4l2_ret != 0
 #ifdef DYNCTRL_IGNORE_EEXIST_AFTER_PASS1
 			&& (ctx->pass == 1 || errno != EEXIST)
