@@ -93,10 +93,6 @@
 			<value>0x009A0905</value><!-- V4L2_CID_CAMERA_CLASS_BASE + 5 -->
 		</constant>
 		<constant type="integer">
-			<id>V4L2_CID_PANTILT_RESET</id>
-			<value>0x0A046D03</value>
-		</constant>
-		<constant type="integer">
 			<id>V4L2_CID_PAN_RESET</id>
 			<value>0x009A0906</value><!-- V4L2_CID_CAMERA_CLASS_BASE + 6 -->
 		</constant>
@@ -371,20 +367,6 @@
 			</uvc>
 			<v4l2>
 				<id>V4L2_CID_TILT_RESET</id>
-				<v4l2_type>V4L2_CTRL_TYPE_BUTTON</v4l2_type>
-			</v4l2>
-		</mapping>
-		
-		<mapping>
-			<name>Pan/tilt Reset</name>
-			<uvc>
-				<control_ref idref="logitech_motor_pantilt_reset"/>
-				<size>8</size>
-				<offset>0</offset>
-				<uvc_type>UVC_CTRL_DATA_TYPE_UNSIGNED</uvc_type>
-			</uvc>
-			<v4l2>
-				<id>V4L2_CID_PANTILT_RESET</id>
 				<v4l2_type>V4L2_CTRL_TYPE_BUTTON</v4l2_type>
 			</v4l2>
 		</mapping>
