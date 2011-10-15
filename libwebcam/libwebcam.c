@@ -2686,7 +2686,7 @@ static CResult get_device_usb_info (Device *device, CUSBInfo *usbinfo)
 	int i;
 	for(i = 0; i < 3; i++) {
 		char *filename = NULL;
-		if(asprintf(&filename, "/sys/class/video4linux/%s/device/%s",
+		if(asprintf(&filename, "/sys/class/video4linux/%s/device/../%s",
 					device->v4l2_name, files[i]) < 0)
 			return C_NO_MEMORY;
 
