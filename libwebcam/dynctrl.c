@@ -139,6 +139,8 @@ typedef struct _UVCXUControl {
 	struct uvc_xu_control_info	info;
 	/// Pointer to the next extension unit control definition in the list
 	struct _UVCXUControl		* next;
+	/// Does the match section of this control match the current device
+	int				match;
 
 } UVCXUControl;
 
@@ -1023,6 +1025,10 @@ static CResult process_mapping (const xmlNode *node_mapping, ParseContext *ctx)
 		return C_PARSE_ERROR;
 	}
 	xmlFree(control_ref); control_ref = NULL;
+	
+	if (!control->match)
+		return C_SUCCESS;
+	
 	memcpy(mapping_info.entity, control->info.entity, GUID_SIZE);
 	mapping_info.selector = control->info.selector;
 
@@ -1219,7 +1225,7 @@ static CResult process_mappings (const xmlNode *node_mappings, ParseContext *ctx
 /**
  * Process a @c control node by adding the contained control to the UVC driver.
  */
-static CResult process_control (xmlNode *node_control, ParseContext *ctx)
+static CResult process_control (xmlNode *node_control, ParseContext *ctx, int match)
 {
 	CResult ret = C_SUCCESS;
 	assert(node_control);
@@ -1232,6 +1238,9 @@ static CResult process_control (xmlNode *node_control, ParseContext *ctx)
 	if(!xu_control)
 		return C_NO_MEMORY;
 	memset(xu_control, 0, sizeof *xu_control);
+
+	// Set match
+	xu_control->match = match;
 
 	// Get the ID of the extension unit control definition
 	xu_control->id = xmlGetProp(node_control, BAD_CAST("id"));
@@ -1280,14 +1289,14 @@ done:
 /**
  * Process a @c controls node.
  */
-static CResult process_controls (const xmlNode *node_controls, ParseContext *ctx)
+static CResult process_controls (const xmlNode *node_controls, ParseContext *ctx, int match)
 {
 	assert(node_controls);
 
 	// Process all <control> nodes
 	xmlNode *node_control = xml_get_first_child_by_name(node_controls, "control");
 	while(node_control) {
-		CResult ret = process_control(node_control, ctx);
+		CResult ret = process_control(node_control, ctx, match);
 		if(ctx->info) {
 			if(ret)
 				ctx->info->stats.controls.successful++;
@@ -1308,12 +1317,54 @@ static CResult process_controls (const xmlNode *node_controls, ParseContext *ctx
  */
 static CResult process_device (const xmlNode *node_device, ParseContext *ctx)
 {
+	xmlNode *node_match;
+	
 	assert(node_device);
+	int match = 1; /* An entry without match sections always matches */
 
+	// Process match
+	for (node_match = xml_get_first_child_by_name(node_device, "match");
+	     node_match != NULL;
+	     node_match = xml_get_next_sibling_by_name(node_match, "match")) {
+		int vid, pid;
+
+		match = 0;
+
+		xmlNode *node = xml_get_first_child_by_name(node_match, "vendor_id");
+		if (node == NULL ||
+		    !is_valid_integer_string((char *)xml_get_node_text(node), &vid)) {
+			add_error_at_node(ctx, node_match,
+				"<vendor_id> is mandatory for match sections and must be a valid integer");
+			return C_PARSE_ERROR;
+		}
+		if (vid != ctx->device->usb.vendor)
+			continue;
+
+		match = 1; /* Sessions with no product_id match on vendor only */
+
+		for (node = xml_get_first_child_by_name(node_match, "product_id");
+		     node != NULL;
+		     node = xml_get_next_sibling_by_name(node, "product_id")) {
+			match = 0;
+
+			if (!is_valid_integer_string((char *)xml_get_node_text(node), &pid)) {
+				add_error_at_node(ctx, node_match,
+					"<product_id> must be a valid integer");
+				return C_PARSE_ERROR;
+			}
+
+			if (pid == ctx->device->usb.product) {
+				match = 1;
+				break;
+			}
+		}
+		break;
+	}
+	
 	// Process the <controls> node
 	xmlNode *node_controls = xml_get_first_child_by_name(node_device, "controls");
 	if(node_controls)
-		process_controls(node_controls, ctx);
+		process_controls(node_controls, ctx, match);
 
 	return C_SUCCESS;
 }
@@ -1323,9 +1374,9 @@ static CResult process_device (const xmlNode *node_device, ParseContext *ctx)
  * Process a @c devices node.
  */
 static CResult process_devices (const xmlNode *node_devices, ParseContext *ctx)
-{
+{	
 	assert(node_devices);
-
+	
 	// Process all <device> nodes
 	xmlNode *node_device = xml_get_first_child_by_name(node_devices, "device");
 	while(node_device) {
