@@ -150,6 +150,8 @@ typedef struct _UVCXUControl {
 typedef struct _ParseContext {
 	/// Structure used to pass information between the application and libwebcam. Can be NULL.
 	CDynctrlInfo	* info;
+	/// XML document tree representing a dynamic controls configuration
+	xmlDoc		* xml_doc;
 	/// Size of the info->messages buffer (which contains the CDynctrlMessage structures
 	/// and the strings pointed to).
 	unsigned int	messages_size;
@@ -157,6 +159,8 @@ typedef struct _ParseContext {
 	iconv_t			cd;
 	/// List of constants parsed from the @c constants node
 	Constant		* constants;
+	/// Device info
+	CDevice			* device;
 	/// Handle to the libwebcam device
 	CHandle			handle;
 	/// Handle to the V4L2 device that is used to add the dynamic controls
@@ -923,11 +927,7 @@ static CResult add_error_at_node (ParseContext *ctx, const xmlNode *node, const 
 /**
  * Parse a dynamic controls configuration XML file and return an XML document tree.
  *
- * Note that the pointer stored in @a *xml_doc must be freed using xmlFreeDoc() if
- * the return value of this functino is C_SUCCESS.
- *
- * @param file_name		name (with an optional path) of the file to be parsed
- * @param xml_doc		address of a pointer to store the XML document tree
+ * @param file_name	name (with an optional path) of the file to be parsed
  * @param ctx		current parse context
  *
  * @return
@@ -935,20 +935,18 @@ static CResult add_error_at_node (ParseContext *ctx, const xmlNode *node, const 
  * 		- C_PARSE_ERROR if the XML file is malformed
  * 		- C_SUCCESS if parsing was successful
  */
-static CResult parse_dynctrl_file (const char *file_name, xmlDoc **xml_doc, ParseContext *ctx)
+static CResult parse_dynctrl_file (const char *file_name, ParseContext *ctx)
 {
 	CResult ret = C_SUCCESS;
 	xmlParserCtxt *parser = NULL;
-	xmlDoc *doc = NULL;
-	assert(xml_doc);
 
 	parser = xmlNewParserCtxt();
 	if(!parser)
 		return C_NO_MEMORY;
 	
 	// Read and parse the XML file
-	doc = xmlCtxtReadFile(parser, file_name, NULL, XML_PARSE_NOBLANKS);
-	if(!doc) {
+	ctx->xml_doc = xmlCtxtReadFile(parser, file_name, NULL, XML_PARSE_NOBLANKS);
+	if(!ctx->xml_doc) {
 		xmlError *e = &parser->lastError;
 		add_message(ctx, e->line, e->int2, CD_SEVERITY_ERROR,
 				"Malformed control mapping file encountered. Unable to parse: %s",
@@ -1523,13 +1521,13 @@ static CResult process_meta (const xmlNode *node_meta, ParseContext *ctx)
 /**
  * Process an XML document tree representing a dynamic controls configuration file.
  */
-static CResult process_dynctrl_doc (xmlDoc *xml_doc, ParseContext *ctx)
+static CResult process_dynctrl_doc (ParseContext *ctx)
 {
 	CResult ret = C_SUCCESS;
 	if(!xml_doc)
 		return C_INVALID_ARG;
 
-	xmlNode *node_root = xmlDocGetRootElement(xml_doc);
+	xmlNode *node_root = xmlDocGetRootElement(ctx->xml_doc);
 	assert(node_root);
 	ctx->pass++;	// We start at pass 1 ...
 
@@ -1646,7 +1644,6 @@ static CResult device_supports_dynctrl(ParseContext *ctx)
 /** 
  * Adds controls and control mappings contained in the given XML tree to the UVC driver.
  *
- * @param xml_doc	XML document tree corresponding to the dynctrl format
  * @param ctx		current parse context
  *
  * @return
@@ -1654,7 +1651,7 @@ static CResult device_supports_dynctrl(ParseContext *ctx)
  * 		- #C_CANNOT_WRITE if the user does not have permissions to add the mappings
  * 		- #C_SUCCESS if adding the controls and control mappings was successful
  */
-static CResult add_control_mappings (xmlDoc *xml_doc, ParseContext *ctx)
+static CResult add_control_mappings (ParseContext *ctx)
 {
 	CResult ret = C_SUCCESS;
 
@@ -1673,9 +1670,35 @@ static CResult add_control_mappings (xmlDoc *xml_doc, ParseContext *ctx)
 	if(ret) goto done;
 
 	// Process the contained control mappings
-	ret = process_dynctrl_doc(xml_doc, ctx);
+	ret = process_dynctrl_doc(ctx);
 
 done:
+	if (ret != C_SUCCESS) {
+		if(ret == C_NOT_IMPLEMENTED) {
+			add_error(ctx,
+				"device '%s' skipped because the driver '%s' behind it does not seem "
+				"to support dynamic controls.",
+				ctx->device->shortName, ctx->device->driver
+			);
+		}
+		else if(ret == C_CANNOT_WRITE) {
+			add_error(ctx,
+				"device '%s' skipped because you do not have the right permissions. "
+				"Newer driver versions require root permissions.",
+				ctx->device->shortName
+			);
+		}
+		else {
+			char *error = c_get_handle_error_text(ctx->handle, ret);
+			assert(error);
+			add_error(ctx,
+				"device '%s' was not processed successfully: %s. (Code: %d)",
+				ctx->device->shortName, error, ret
+			);
+			free(error);
+		}
+	}
+
 	// Close the device handle
 	if(ctx && ctx->v4l2_handle) {
 		close(ctx->v4l2_handle);
@@ -1685,7 +1708,88 @@ done:
 	return ret;
 }
 
+/**
+ * Cleans up all resources held by the passed in ctx
+ *
+ * @param ctx		current parse context
+ */
+static void destroy_context (ParseContext *ctx)
+{
+	if(!ctx) return;
 
+	// Close the conversion descriptor
+	if(ctx->cd && ctx->cd != (iconv_t)-1)
+		iconv_close(ctx->cd);
+
+	if(ctx->xml_doc)
+		xmlFreeDoc(ctx->xml_doc);
+
+	// Free the ParseContext.constants list
+	Constant *celem = ctx->constants;
+	while(celem) {
+		Constant *next = celem->next;
+		free(celem->name);
+		free(celem);
+		celem = next;
+	}
+
+	// Free the ParseContext.controls list
+	UVCXUControl *elem = ctx->controls;
+	while(elem) {
+		UVCXUControl *next = elem->next;
+		xmlFree(elem->id);
+		free(elem);
+		elem = next;
+	}
+
+	free(ctx);
+}
+
+/**
+ * Create a parsing context using the specified XML config-file
+ *
+ * @param file_name	name (with an optional path) of the file to be parsed
+ * @param info		structure to pass operation flags and retrieve status information.
+ * 				Can be NULL.
+ * @param ctx		address of a pointer to store the created context
+ *
+ * @return
+ * 		- C_NO_MEMORY if a buffer or structure could not be allocated
+ * 		- C_PARSE_ERROR if the XML file is malformed
+ * 		- C_SUCCESS if parsing was successful
+ */
+static CResult create_context (const char *file_name, CDynctrlInfo *info,
+			       ParseContext **ctx_ret)
+{
+	ParseContext *ctx;
+	CResult ret;
+
+	*ctx_ret = NULL;
+
+	// Allocate memory for the parsing context
+	ctx = (ParseContext *)malloc(sizeof(ParseContext));
+	if(!ctx) return C_NO_MEMORY;
+
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->info = info;
+
+	// Parse the dynctrl configuration file
+	ret = parse_dynctrl_file(file_name, ctx);
+	if(ret) {
+		destroy_context(ctx);
+		return ret;
+	}
+
+	// Allocate a conversion descriptor
+	ctx->cd = iconv_open("ASCII", "UTF-8");
+	if(ctx->cd == (iconv_t)-1) {
+		destroy_context(ctx);
+		return C_NO_MEMORY;
+	}
+
+	*ctx_ret = ctx;
+	return C_SUCCESS;
+}
 
 /*
  * API
@@ -1720,7 +1824,6 @@ CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *i
 	CResult ret = C_SUCCESS;
 	CDevice *devices = NULL;
 	ParseContext *ctx = NULL;
-	xmlDoc *xml_doc = NULL;
 
 	if(!initialized)
 		return C_INIT_ERROR;
@@ -1743,22 +1846,8 @@ CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *i
 	ret = c_enum_devices(devices, &size, &device_count);
 	if(ret) goto done;
 
-	// Allocate memory for the parsing context
-	ctx = (ParseContext *)malloc(sizeof(ParseContext));
-	if(!ctx) {
-		ret = C_NO_MEMORY;
-		goto done;
-	}
-	memset(ctx, 0, sizeof(*ctx));
-	ctx->info = info;
-
-	// Parse the dynctrl configuration file
-	ret = parse_dynctrl_file(file_name, &xml_doc, ctx);
+	ret = create_context(file_name, info, &ctx);
 	if(ret) goto done;
-
-	// Allocate a conversion descriptor
-	ctx->cd = iconv_open("ASCII", "UTF-8");
-	assert(ctx->cd != (iconv_t)-1);
 
 	// Loop through the devices and check which ones have a supported uvcvideo driver behind them
 	int i, successful_devices = 0;
@@ -1783,71 +1872,24 @@ CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *i
 			);
 			continue;
 		}
-
+		ctx->device = device;
+		
 		// Add the parsed control mappings to this device
-		ret = add_control_mappings(xml_doc, ctx);
+		ret = add_control_mappings(ctx);
 		if(ret == C_SUCCESS) {
 			successful_devices++;
-		}
-		else if(ret == C_NOT_IMPLEMENTED) {
-			add_error(ctx,
-				"device '%s' skipped because the driver '%s' behind it does not seem "
-				"to support dynamic controls.",
-				device->shortName, device->driver
-			);
-		}
-		else if(ret == C_CANNOT_WRITE) {
-			add_error(ctx,
-				"device '%s' skipped because you do not have the right permissions. "
-				"Newer driver versions require root permissions.",
-				device->shortName
-			);
-		}
-		else {
-			char *error = c_get_handle_error_text(ctx->handle, ret);
-			assert(error);
-			add_error(ctx,
-				"device '%s' was not processed successfully: %s. (Code: %d)",
-				device->shortName, error, ret
-			);
-			free(error);
 		}
 
 		// Close the device handle
 		c_close_device(ctx->handle);
 		ctx->handle = 0;
+		ctx->device = NULL;
 	}
 	if(successful_devices == 0)
 		ret = C_INVALID_DEVICE;
 
 done:
-	// Close the conversion descriptor
-	if(ctx && ctx->cd && ctx->cd != (iconv_t)-1)
-		iconv_close(ctx->cd);
-
-	// Clean up
-	if(xml_doc) xmlFreeDoc(xml_doc);
-	if(ctx) {
-		// Free the ParseContext.constants list
-		Constant *celem = ctx->constants;
-		while(celem) {
-			Constant *next = celem->next;
-			free(celem->name);
-			free(celem);
-			celem = next;
-		}
-
-		// Free the ParseContext.controls list
-		UVCXUControl *elem = ctx->controls;
-		while(elem) {
-			UVCXUControl *next = elem->next;
-			xmlFree(elem->id);
-			free(elem);
-			elem = next;
-		}
-
-		free(ctx);
-	}
+	destroy_context(ctx);
 	if(devices) free(devices);
 
 	return ret;
