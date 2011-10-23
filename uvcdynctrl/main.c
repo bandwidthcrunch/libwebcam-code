@@ -705,15 +705,19 @@ get_filename (const char *dir_path, const char *vid)
 }
 
 static CResult
-add_control_mappings(const char *filename)
+add_control_mappings(CHandle hDevice, const char *filename)
 {
+	CResult res;
 	CDynctrlInfo info = { 0 };
 	info.flags = CD_REPORT_ERRORS;
 	if(HAS_VERBOSE())
 		info.flags |= CD_RETRIEVE_META_INFO;
 
 	printf("Importing dynamic controls from file %s.\n", filename);
-	CResult res = c_add_control_mappings_from_file(filename, &info);
+	if (hDevice)
+		res = c_add_control_mappings(hDevice, filename, &info);
+	else
+		res = c_add_control_mappings_from_file(filename, &info);
 	if(res)
 		print_error("Unable to import dynamic controls", res);
 
@@ -802,6 +806,16 @@ main (int argc, char **argv)
 
 	res = c_init();
 	if(res) goto done;
+	
+	// Open the device
+	if (!args_info.list_given && (!args_info.import_given || args_info.device_given)) {
+		handle = c_open_device(args_info.device_arg);
+		if(!handle) {
+			print_error("Unable to open device", -1);
+			res = C_INVALID_DEVICE;
+			goto done;
+		}
+	}
 
 	// List devices
 	if(args_info.list_given) {
@@ -810,7 +824,7 @@ main (int argc, char **argv)
 	}
 	// Import dynamic controls from XML file
 	else if(args_info.import_given) {
-		res = add_control_mappings(args_info.import_arg);
+		res = add_control_mappings(handle, args_info.import_arg);
 		goto done;
 	}
 	// Import dynamic controls from XML files at default location
@@ -884,27 +898,19 @@ main (int argc, char **argv)
 				if ((strcasecmp(fname, xml_files[nf]) == 0))
 				{
 					printf ( "Parsing: %s \n", xml_files[nf]);
-					res = add_control_mappings(xml_files[nf]);
+					res = add_control_mappings(handle, xml_files[nf]);
 				}
 			}
 			else /* parse all xml files inside vid dir */
 			{
 				printf ( "Parsing: %s \n", xml_files[nf]);
-				res = add_control_mappings(xml_files[nf]);
+				res = add_control_mappings(handle, xml_files[nf]);
 			}
 			free(xml_files[nf]);
 			xml_files[nf]=NULL;
 			nf++;
 		}
 		free(xml_files);
-		goto done;
-	}
-	
-	// Open the device
-	handle = c_open_device(args_info.device_arg);
-	if(!handle) {
-		print_error("Unable to open device", -1);
-		res = C_INVALID_DEVICE;
 		goto done;
 	}
 

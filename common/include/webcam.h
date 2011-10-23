@@ -713,6 +713,7 @@ extern CResult		c_unsubscribe_event (CHandle hDevice, CEventId event_id);
 
 #ifndef DISABLE_UVCVIDEO_DYNCTRL
 extern CResult		c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *info);
+extern CResult		c_add_control_mappings (CHandle handle, const char *file_name, CDynctrlInfo *info);
 #endif
 
 extern char			*c_get_error_text (CResult error);

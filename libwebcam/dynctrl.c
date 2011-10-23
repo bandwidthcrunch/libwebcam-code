@@ -1895,6 +1895,64 @@ done:
 	return ret;
 }
 
+/**
+ * Parses a dynamic controls configuration file and adds the contained controls and
+ * control mappings to the UVC device pointed to by the passed in handle.
+ *
+ * Notes:
+ * - If the @a info parameter is not NULL the caller must free the info->messages field
+ *   if it is not NULL.
+ * - Note that this function is not thread-safe.
+ *
+ * @param handle		handle to the device to add control mappings to
+ * @param file_name		name of the controls configuration file
+ * @param info			structure to pass operation flags and retrieve status information.
+ * 						Can be NULL.
+ *
+ * @return
+ * 		- #C_INIT_ERROR if the library has not been initialized
+ * 		- #C_NO_MEMORY if memory could not be allocated
+ * 		- #C_SUCCESS if the parsing was successful and no fatal error occurred
+ * 		- #C_NOT_IMPLEMENTED if libwebcam was compiled with dynctrl support disabled
+ */
+CResult c_add_control_mappings (CHandle handle, const char *file_name,
+				CDynctrlInfo *info)
+{
+	CResult ret;
+	CDevice *device = NULL;
+	ParseContext *ctx = NULL;
+	unsigned int size = 0;
+
+	if(!initialized)
+		return C_INIT_ERROR;
+	if(!handle)
+		return C_INVALID_ARG;
+	if(!file_name)
+		return C_INVALID_ARG;
+
+	ret = c_get_device_info(handle, NULL, device, &size);
+	if(ret != C_BUFFER_TOO_SMALL) {
+		// Something bad has happened, so bail out
+		return ret;
+	}
+
+	device = (CDevice *)malloc(size);
+	ret = c_get_device_info(handle, NULL, device, &size);
+	if(ret) goto done;
+
+	ret = create_context(file_name, info, &ctx);
+	if(ret) goto done;
+
+	ctx->handle = handle;
+	ctx->device = device;
+	ret = add_control_mappings(ctx);
+
+done:
+	destroy_context(ctx);
+	free(device);
+
+	return ret;
+}
 
 #else
 
@@ -1904,5 +1962,10 @@ CResult c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *i
 	return C_NOT_IMPLEMENTED;
 }
 
+CResult c_add_control_mappings (CHandle handle, const char *file_name,
+				CDynctrlInfo *info)
+{
+	return C_NOT_IMPLEMENTED;
+}
 
 #endif
