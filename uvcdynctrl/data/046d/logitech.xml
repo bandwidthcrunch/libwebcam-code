@@ -224,6 +224,7 @@
 			<match>
 				<vendor_id>0x046d</vendor_id>
 				<!-- Logitech QuickCam Pro 9000 -->
+				<product_id>0x0809</product_id>
 				<product_id>0x0990</product_id>
 				<!-- Logitech QuickCam Pro for Notebooks -->
 				<product_id>0x0991</product_id>
