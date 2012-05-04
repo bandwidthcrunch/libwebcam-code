@@ -1492,6 +1492,40 @@ static CResult device_supports_dynctrl(ParseContext *ctx)
 		/* Success: Assume not supported */
 		ret = C_NOT_IMPLEMENTED;
 	}
+#else
+	struct uvc_xu_control_mapping xu_control = {
+		.id = V4L2_CID_BRIGHTNESS,
+		.name = "Brightness",
+		.entity = /* UVC_GUID_UVC_PROCESSING */ { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01 },
+		.selector	= /* PU_BRIGHTNESS_CONTROL */ 0x02,
+		.size = 0,
+		.offset = 0,
+		.v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+		.data_type = UVC_CTRL_DATA_TYPE_SIGNED,
+		.menu_info = NULL,
+		.menu_count = 0,
+		.reserved = {0,0,0,0},
+	};
+	
+	int v4l2_ret = ioctl(ctx->v4l2_handle, UVCIOC_CTRL_MAP, &xu_control);
+	if(v4l2_ret == -1) {
+		if(errno == EPERM) {
+			/* User is not root (newer drivers require root permissions) */
+			ret = C_CANNOT_WRITE;
+		}
+		else if(errno == ENOENT) {
+			/* Driver supports dynamic controls */
+		}
+		else {
+			printf("UVCIOC_CTRL_MAP returned errno(%i)\n", errno);
+			/* Unexpected error: Assume not supported */
+			ret = C_NOT_IMPLEMENTED;
+		}
+	}
+	else {
+		/* Success: Assume not supported */
+		ret = C_NOT_IMPLEMENTED;
+	}
 #endif
 	return ret;
 }
