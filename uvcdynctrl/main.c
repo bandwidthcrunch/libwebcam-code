@@ -197,6 +197,17 @@ print_device (CDevice *device)
 	}
 }
 
+static int file_exists (char * fileName)
+{
+	int result = access (fileName, F_OK); 
+   
+	/* File found */
+	if ( result == 0 )
+    {
+    	return 1;
+    }
+    return 0;   
+}
 
 static CResult
 list_controls (CHandle hDevice)
@@ -427,7 +438,6 @@ done:
 	return ret;
 }
 
-
 static CResult
 list_entities (CDevice *device)
 {
@@ -439,8 +449,15 @@ list_entities (CDevice *device)
 
 	char media_path[32] = { 0 };
 	sprintf(media_path, "/dev/media%u", device_index);
-	printf("    Media controller device: %s\n", media_path);
-
+	//check for device node
+	if(file_exists(media_path))
+		printf("    Media controller device: %s\n", media_path);
+	else
+	{
+		printf("    Media controller device %s doesn't exist\n", media_path);
+		return C_INVALID_DEVICE;
+	}
+	
 	int mcdev = open(media_path, O_RDWR);
 	if(mcdev == -1) {
 		printf("ERROR: Unable to open media controller device '%s': %s (Error: %d)\n", media_path, strerror(errno), errno);
