@@ -28,13 +28,6 @@ set_target_properties (webcam PROPERTIES VERSION 0.2.0)
 include (FindPkgConfig)
 pkg_check_modules (LIBXML2 REQUIRED libxml-2.0)
 
-# Require uvcvideo
-find_path (UVCVIDEO_INCLUDE_DIR uvcvideo.h)
-if (NOT UVCVIDEO_INCLUDE_DIR)
-	message(FATAL_ERROR "Linux UVC Driver sources (uvcvideo.h) not found. Try adding its path to the CMAKE_INCLUDE_PATH environment variable.")
-endif (NOT UVCVIDEO_INCLUDE_DIR)
-message("** Found Linux UVC Driver sources: ${UVCVIDEO_INCLUDE_DIR}")
-
 # Check V4L2
 try_compile (HAS_V4L2_STRING_CONTROLS ${CMAKE_BINARY_DIR}/ ${CMAKE_CURRENT_SOURCE_DIR}/../common/build/cmake_try_v4l2_ctrl_type_string.c)
 if (HAS_V4L2_STRING_CONTROLS)
@@ -45,7 +38,7 @@ else (HAS_V4L2_STRING_CONTROLS)
 endif (HAS_V4L2_STRING_CONTROLS)
 
 # Includes
-include_directories (include ${LIBXML2_INCLUDE_DIRS} ${UVCVIDEO_INCLUDE_DIR} ../common/include)
+include_directories (include ${LIBXML2_INCLUDE_DIRS} ../common/include)
 
 # Libraries
 target_link_libraries (webcam ${LIBXML2_LIBRARIES})
@@ -75,74 +68,3 @@ install (
 	LIBRARY DESTINATION		${CMAKE_INSTALL_LIBDIR}
 	COMPONENT				LIBWEBCAM
 )
-
-
-
-#
-# PACKAGING
-#
-
-# Prerequisites
-execute_process (
-	COMMAND				/usr/bin/dpkg --print-architecture
-	OUTPUT_VARIABLE		CPACK_DEBIAN_PACKAGE_ARCHITECTURE
-	RESULT_VARIABLE		EXECUTE_RESULT
-	OUTPUT_STRIP_TRAILING_WHITESPACE
-	ERROR_QUIET
-)
-if (EXECUTE_RESULT)
-	message(FATAL_ERROR "Unable to determine current dpkg architecture: ${EXECUTE_RESULT}")
-else (EXECUTE_RESULT)
-	message("** Debian package architecture: ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
-endif (EXECUTE_RESULT)
-
-# Generic
-set (CPACK_GENERATOR					"TBZ2;DEB")
-set (CPACK_PACKAGE_NAME					"libwebcam")
-set (CPACK_PACKAGE_DESCRIPTION_SUMMARY	"Webcam utility library")
-set (CPACK_PACKAGE_DESCRIPTION			"Provides camera, control, and frame format enumeration and simplifies camera control access. Also allows for configuring the Linux UVC driver's dynamic control mechanism.")
-set (CPACK_RESOURCE_FILE_LICENSE		"${CMAKE_CURRENT_SOURCE_DIR}/COPYING.LESSER")
-set (CPACK_RESOURCE_FILE_README			"${CMAKE_CURRENT_SOURCE_DIR}/README")
-set (CPACK_PACKAGE_VENDOR				"Logitech")
-set (CPACK_PACKAGE_VERSION				"0.2.0")
-set (CPACK_PACKAGE_FILE_NAME			"${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
-
-# Debian
-# The dependencies are obtained by extracting the (dependency lacking) .deb package
-# into a directory called 'debian', adding a fake "Source: ..." line to the debian/control
-# file and running 'dpkg-shlibdeps -O debian/usr/lib/libwebcam.so'.
-set (CPACK_DEBIAN_PACKAGE_MAINTAINER	"Martin Rubli <martin_rubli@logitech.com>")
-set (CPACK_DEBIAN_PACKAGE_DEPENDS		"libxml2 (>= 2.6.27), libc6 (>= 2.4)")
-
-# Instead of actually packing we just generate a CPack configuration file. The top level
-# README file explains how to package the project.
-if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../common/build/CPackConfig.cmake.conf")
-	message ("** Creating CPack configuration file for ${CPACK_PACKAGE_NAME} ...")
-	configure_file (
-		${CMAKE_CURRENT_SOURCE_DIR}/../common/build/CPackConfig.cmake.conf
-		${CMAKE_CURRENT_BINARY_DIR}/CPackConfig.cmake
-	)
-endif (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../common/build/CPackConfig.cmake.conf")
-
-# Source packaging
-# Note that we only enable source packaging if we're not building from the top-level
-# directory. The reason for this is that source packaging at the top-level includes
-# the entire tree by default and exclude patterns are not suitable in our case.
-if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
-	set (CPACK_SOURCE_GENERATOR				"TBZ2")
-	set (CPACK_SOURCE_PACKAGE_FILE_NAME		"${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
-
-	# The following is a list of semicolon separate regexp patterns of files and
-	# directories to ignore. Regexp anchors like ^ and $ can be used but because
-	# CPack matches entire paths ^ won't work for file matching. We can use / on
-	# the left-hand side instead. Also note that backslashes need to be double-
-	# escaped (i.e. \\\\). Therefore Perl's \. to match a dot becomes \\\\. here.
-	set (CPACK_SOURCE_IGNORE_FILES
-		"/\\\\.svn/"								# Subversion directories
-		"/\\\\..+$"									# Hidden files and directories
-		"build"										# Build directories
-		"tags;/doxygen-output"						# Misc
-	)
-
-	include (CPack)
-endif (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})

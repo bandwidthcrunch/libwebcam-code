@@ -35,7 +35,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <sys/ioctl.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <errno.h>
 #include <iconv.h>
 
