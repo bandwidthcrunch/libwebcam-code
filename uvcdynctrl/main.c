@@ -448,61 +448,75 @@ list_entities (CDevice *device)
 	}
 
 	int r = 0;
-	struct media_user_entity entity;
+	struct media_entity_desc entity;
 	memset(&entity, 0, sizeof(entity));
 	entity.id = 1;
 	while((r = ioctl(mcdev, MEDIA_IOC_ENUM_ENTITIES, &entity)) == 0) {
 		printf(
-			"    Entity %u: %s. Type: %u, Subtype: %u, Pads: %u, Links: %u\n",
-			entity.id, entity.name, entity.type, entity.subtype, entity.pads, entity.links
+			"    Entity %u: %s. Type: %u, Revision: %u, Flags: %u, Group-id: %u, Pads: %u, Links: %u\n",
+			entity.id, entity.name, entity.type, entity.revision, entity.flags, entity.group_id, entity.pads, entity.links
 		);
 
-		switch(entity.type) {
-			case MEDIA_ENTITY_TYPE_NODE:
-				switch(entity.subtype) {
-					case MEDIA_NODE_TYPE_V4L:
+		switch(entity.type & MEDIA_ENT_TYPE_MASK) {
+			case MEDIA_ENT_T_DEVNODE:
+				printf("      Device node\n");
+			
+				switch(entity.type & MEDIA_ENT_SUBTYPE_MASK) {
+					case MEDIA_ENT_T_DEVNODE_V4L:
 						printf("      Node: v4l: { major: %u, minor: %u }\n", entity.v4l.major, entity.v4l.minor);
 						break;
-					case MEDIA_NODE_TYPE_FB:
+					case MEDIA_ENT_T_DEVNODE_FB:
 						printf("      Node: fb: { major: %u, minor: %u }\n", entity.fb.major, entity.fb.minor);
 						break;
-					case MEDIA_NODE_TYPE_ALSA:
-						printf("      Node: alsa: %u\n", entity.alsa);
+					case MEDIA_ENT_T_DEVNODE_ALSA:
+						printf("      Node: alsa: {card: %u, device: %u, subdevice: %u}\n", entity.alsa.card, entity.alsa.device, entity.alsa.subdevice);
 						break;
-					case MEDIA_NODE_TYPE_DVB:
+					case MEDIA_ENT_T_DEVNODE_DVB:
 						printf("      Node: dvb: %u\n", entity.dvb);
 						break;
 				}
 				break;
-
-			case MEDIA_ENTITY_TYPE_SUBDEV:
-				printf("      Subdevice\n");
+				
+			case MEDIA_ENT_T_V4L2_SUBDEV:
+				printf("      Subdevice: ");
+			
+				switch(entity.type & MEDIA_ENT_SUBTYPE_MASK) {
+					case MEDIA_ENT_T_V4L2_SUBDEV_SENSOR:
+						printf(" Sensor\n");
+						break;
+					case MEDIA_ENT_T_V4L2_SUBDEV_FLASH:
+						printf(" Flash\n");
+						break;
+					case MEDIA_ENT_T_V4L2_SUBDEV_LENS:
+						printf(" Lens\n");
+						break;
+				}
 				break;
 		}
 
-		struct media_user_links links;
+		struct media_links_enum links;
 		memset(&links, 0, sizeof(links));
 		links.entity = entity.id;
-		links.pads = (struct media_user_pad *)calloc(entity.pads, sizeof(struct media_user_pad));
-		links.links = (struct media_user_link *)calloc(entity.links, sizeof(struct media_user_link));
+		links.pads = (struct media_pad_desc *)calloc(entity.pads, sizeof(struct media_pad_desc));
+		links.links = (struct media_link_desc *)calloc(entity.links, sizeof(struct media_link_desc));
 
 		r = ioctl(mcdev, MEDIA_IOC_ENUM_LINKS, &links);
 		if(r == 0) {
 			for(int i = 0; i < entity.pads; i++) {
-				struct media_user_pad *pelem = &links.pads[i];
+				struct media_pad_desc *pelem = &links.pads[i];
 				printf(
-					"      Pad %u, Type: %u\n",
-					pelem->index, pelem->type
+					"      Entity: %u, Pad %u, Flags: %u\n",
+					pelem->entity, pelem->index, pelem->flags
 				);
 			}
 
 			for(int i = 0; i < entity.links; i++) {
-				struct media_user_link *lelem = &links.links[i];
+				struct media_link_desc *lelem = &links.links[i];
 				printf(
-					"      Out link: Source pad { Entity: %u, Index: %u, Type: %u } => "
-					"Sink pad { Entity: %u, Index: %u, Type: %u }\n",
-					lelem->source.entity, lelem->source.index, lelem->source.type,
-					lelem->sink.entity, lelem->sink.index, lelem->sink.type
+					"      Out link: Source pad { Entity: %u, Index: %u, Flags: %u } => "
+					"Sink pad { Entity: %u, Index: %u, Flags: %u }\n",
+					lelem->source.entity, lelem->source.index, lelem->source.flags,
+					lelem->sink.entity, lelem->sink.index, lelem->sink.flags
 				);
 			}
 		}
