@@ -337,31 +337,31 @@ static int string_to_version (const char *string, unsigned int *major, unsigned 
  * 		- 0 if the conversion failed, i.e. the request name was not recognized
  * 		- a UVC_CONTROL_* constant if the conversion was successful
  */
-static __u32 get_uvc_request_by_name (const xmlChar *name)
-{
-	__u32 request = 0;	// Used to denote an invalid/unsupported UVC control request
-	if(!name) return request;
-
-	if(xmlStrEqual(name, BAD_CAST("SET_CUR"))) {
-		request = UVC_CONTROL_SET_CUR;
-	}
-	else if(xmlStrEqual(name, BAD_CAST("GET_CUR"))) {
-		request = UVC_CONTROL_GET_CUR;
-	}
-	else if(xmlStrEqual(name, BAD_CAST("GET_MIN"))) {
-		request = UVC_CONTROL_GET_MIN;
-	}
-	else if(xmlStrEqual(name, BAD_CAST("GET_MAX"))) {
-		request = UVC_CONTROL_GET_MAX;
-	}
-	else if(xmlStrEqual(name, BAD_CAST("GET_RES"))) {
-		request = UVC_CONTROL_GET_RES;
-	}
-	else if(xmlStrEqual(name, BAD_CAST("GET_DEF"))) {
-		request = UVC_CONTROL_GET_DEF;
-	}
-	return request;
-}
+//static __u32 get_uvc_request_by_name (const xmlChar *name)
+//{
+//	__u32 request = 0;	// Used to denote an invalid/unsupported UVC control request
+//	if(!name) return request;
+//
+//	if(xmlStrEqual(name, BAD_CAST("SET_CUR"))) {
+//		request = UVC_CONTROL_SET_CUR;
+//	}
+//	else if(xmlStrEqual(name, BAD_CAST("GET_CUR"))) {
+//		request = UVC_CONTROL_GET_CUR;
+//	}
+//	else if(xmlStrEqual(name, BAD_CAST("GET_MIN"))) {
+//		request = UVC_CONTROL_GET_MIN;
+//	}
+//	else if(xmlStrEqual(name, BAD_CAST("GET_MAX"))) {
+//		request = UVC_CONTROL_GET_MAX;
+//	}
+//	else if(xmlStrEqual(name, BAD_CAST("GET_RES"))) {
+//		request = UVC_CONTROL_GET_RES;
+//	}
+//	else if(xmlStrEqual(name, BAD_CAST("GET_DEF"))) {
+//		request = UVC_CONTROL_GET_DEF;
+//	}
+//	return request;
+//}
 
 
 /**

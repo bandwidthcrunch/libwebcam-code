@@ -376,12 +376,12 @@ int update_arg(void *field, char **orig_field,
                const char *long_opt, char short_opt,
                const char *additional_error)
 {
-  char *stop_char = 0;
+  //char *stop_char = 0;
   const char *val = value;
   int found;
   char **string_field;
 
-  stop_char = 0;
+  //stop_char = 0;
   found = 0;
 
   if (!multiple_option && prev_given && (*prev_given || (check_ambiguity && *field_given)))
@@ -456,14 +456,14 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
   
   int override;
   int initialize;
-  int check_required;
+  //int check_required;
   int check_ambiguity;
   
   package_name = argv[0];
   
   override = params->override;
   initialize = params->initialize;
-  check_required = params->check_required;
+  //check_required = params->check_required;
   check_ambiguity = params->check_ambiguity;
 
   if (initialize)
