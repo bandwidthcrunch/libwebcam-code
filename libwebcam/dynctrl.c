@@ -1202,87 +1202,8 @@ static CResult process_control (xmlNode *node_control, ParseContext *ctx)
 	}
 	xu_control->info.selector = (__u8)value;
 
-	// Retrieve the index
-	text = xml_get_node_text(xml_get_first_child_by_name(node_control, "index"));
-	ret = lookup_or_convert_to_integer(text, &value, ctx);
-	if(ret) {
-		add_error_at_node(ctx, node_control,
-			"Invalid control index specified: '%s'", text ? (char *)text : "<empty>");
-		goto done;
-	}
-	xu_control->info.index = (__u8)value;
-
-	// Retrieve the size
-	text = xml_get_node_text(xml_get_first_child_by_name(node_control, "size"));
-	ret = lookup_or_convert_to_integer(text, &value, ctx);
-	if(ret || !is_valid_size(value, 0xFFFF)) {
-		add_error_at_node(ctx, node_control,
-			"Invalid control size specified: '%s'", text ? (char *)text : "<empty>");
-		goto done;
-	}
-	xu_control->info.size = (__u16)value;
-
-	// Retrieve the list of supported requests
-	xmlNode *node_requests = xml_get_first_child_by_name(node_control, "requests");
-	if(!node_requests) {
-		add_error_at_node(ctx, node_control,
-			"List of supported UVC requests missing. <requests> is mandatory.");
-		ret = C_PARSE_ERROR;
-		goto done;
-	}
-	xmlNode *node_request = xml_get_first_child_by_name(node_requests, "request");
-	while(node_request) {
-		text = xml_get_node_text(node_request);
-		__u32 flag = get_uvc_request_by_name(text);
-		if(!flag) {
-			add_error_at_node(ctx, node_request,
-				"Invalid UVC request specified: '%s'", text ? (char *)text : "<empty>");
-		}
-		xu_control->info.flags |= flag;
-		node_request = xml_get_next_sibling_by_name(node_request, "request");
-	}
-
-	// Disable the UVC driver's caching mechanism for XU controls
-	xu_control->info.flags |= UVC_CONTROL_AUTO_UPDATE;
-
-	// Add the control to the UVC driver's control list
-	/*
-	printf(
-		"uvc_xu_control_info = {\n"
-		"	entity   = {" GUID_FORMAT "},\n"
-		"	index    = %u,\n"
-		"	selector = %u,\n"
-		"	size     = %u,\n"
-		"	flags    = %u\n"
-		"}\n",
-		GUID_ARGS(xu_control->info.entity),
-		xu_control->info.index,
-		xu_control->info.selector,
-		xu_control->info.size,
-		xu_control->info.flags
-	);
-	*/
-	int v4l2_ret = ioctl(ctx->v4l2_handle, UVCIOC_CTRL_ADD, &xu_control->info);
-	if(v4l2_ret != 0
-#ifdef DYNCTRL_IGNORE_EEXIST_AFTER_PASS1
-			&& (ctx->pass == 1 || errno != EEXIST)
-#endif
-		)
-	{
-		add_error(ctx,
-			"%s: unable to add control with GUID {"GUID_FORMAT"} and selector %d. "
-			"ioctl(UVCIOC_CTRL_ADD) failed with return value %d (error %d: %s)",
-			GET_HANDLE(ctx->handle).device->v4l2_name,
-			GUID_ARGS(xu_control->info.entity), xu_control->info.selector,
-			v4l2_ret, errno, strerror(errno));
-		ret = C_V4L2_ERROR;
-	}
-
 	// Add the extension unit control definition to the internal list for later
 	// reference by mappings.
-	// Note that we add controls to the list whether or not the UVCIOC_CTRL_ADD above
-	// succeeded or not. The control might already exist in the driver but a referencing
-	// mapping might not, but the mapping needs to be able to look up the control.
 	xu_control->next = ctx->controls;
 	ctx->controls = xu_control;
 
@@ -1294,7 +1215,6 @@ done:
 	}
 	return ret;
 }
-
 
 /**
  * Process a @c controls node.
@@ -1542,6 +1462,8 @@ static CResult process_dynctrl_doc (xmlDoc *xml_doc, ParseContext *ctx)
 static CResult device_supports_dynctrl(ParseContext *ctx)
 {
 	CResult ret = C_SUCCESS;
+
+#ifdef UVCIOC_CTRL_ADD
 	struct uvc_xu_control_info xu_control = {
 		.entity		= /* UVC_GUID_UVC_PROCESSING */ { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01 },
 		.selector	= /* PU_BRIGHTNESS_CONTROL */ 0x02,
@@ -1570,7 +1492,7 @@ static CResult device_supports_dynctrl(ParseContext *ctx)
 		/* Success: Assume not supported */
 		ret = C_NOT_IMPLEMENTED;
 	}
-
+#endif
 	return ret;
 }
 

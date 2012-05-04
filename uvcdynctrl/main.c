@@ -33,7 +33,7 @@
 #include <linux/types.h>
 
 #define __user
-#include <media.h>
+#include <linux/media.h>
 
 #include "cmdline.h"
 #include "controls.h"
