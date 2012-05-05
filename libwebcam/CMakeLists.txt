@@ -14,8 +14,10 @@ project (LIBWEBCAM)
 #
 
 add_library (webcam SHARED libwebcam.c dynctrl.c)
+add_library (webcam_static STATIC libwebcam.c dynctrl.c)
 
-set_target_properties (webcam PROPERTIES VERSION 0.2.0)
+set_target_properties (webcam PROPERTIES VERSION 0.2.2 SOVERSION 0 CLEAN_DIRECT_OUTPUT 1 OUTPUT_NAME "webcam")
+set_target_properties (webcam_static PROPERTIES VERSION 0.2.2 SOVERSION 0 CLEAN_DIRECT_OUTPUT 1 OUTPUT_NAME "webcam")
 
 
 
@@ -42,11 +44,29 @@ include_directories (include ${LIBXML2_INCLUDE_DIRS} ../common/include)
 
 # Libraries
 target_link_libraries (webcam ${LIBXML2_LIBRARIES})
+target_link_libraries (webcam_static ${LIBXML2_LIBRARIES})
 
 # Compiler flags
 set_target_properties (webcam PROPERTIES
 	COMPILE_FLAGS "-Wall"
 )
+
+set_target_properties (webcam_static PROPERTIES
+	COMPILE_FLAGS "-Wall ${EXTRA_COMPILE_FLAGS}"
+)
+
+# create libwebcam.pc (for pkg-config)
+execute_process (
+	COMMAND			sh -c "sed -e 's_<--PREFIX--!>_${CMAKE_INSTALL_PREFIX}_g' ${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig/libwebcam.pc_base  > ${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig/libwebcam.pc"
+	RESULT_VARIABLE		PC_EXECUTE_RESULT
+	ERROR_QUIET
+)
+ 
+if (PC_EXECUTE_RESULT)
+	message(ERROR " Unable to parse ${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig/libwebcam.pc_base")
+else (PC_EXECUTE_RESULT)
+	message("** created libwecam.pc")
+endif (PC_EXECUTE_RESULT)
 
 
 
@@ -64,7 +84,22 @@ else (${CMAKE_INSTALL_LIBDIR} MATCHES "^/")
 	message("** Installation directory for libwebcam: ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 endif (${CMAKE_INSTALL_LIBDIR} MATCHES "^/")
 install (
-	TARGETS					webcam
+	TARGETS					webcam webcam_static
 	LIBRARY DESTINATION		${CMAKE_INSTALL_LIBDIR}
+	ARCHIVE DESTINATION		${CMAKE_INSTALL_LIBDIR}
 	COMPONENT				LIBWEBCAM
 )
+
+# Default permissions for DIRECTORY files: rw-r--r--
+# Default permissions for PROGRAMS files:  rwxr-xr-x
+# Note that having absolute paths here requires CPACK_SET_DESTDIR to be set to "ON".
+install (
+	FILES	pkgconfig/libwebcam.pc
+	DESTINATION 	${CMAKE_INSTALL_LIBDIR}/pkgconfig
+)
+
+install (
+	FILES	../common/include/webcam.h
+	DESTINATION 	${CMAKE_INSTALL_PREFIX}/include
+)
+
