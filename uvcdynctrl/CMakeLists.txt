@@ -58,7 +58,7 @@ add_definitions (-DHAVE_CONFIG_H)
 
 #create man pages
 execute_process (
-	COMMAND			sh -c "cp ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1_ ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1; cp ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1_ ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl-0.2.1.1; gzip --best ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl-0.2.1.1; gzip --best ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1;"
+	COMMAND			sh -c "rm -f ${CMAKE_CURRENT_SOURCE_DIR}/*.gz; cp ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1_ ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1; cp ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1_ ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl-${UVCDYNCTRL_VERSION}.1; gzip --best ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl-${UVCDYNCTRL_VERSION}.1; gzip --best ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1;"
 	RESULT_VARIABLE		MAN_BUILD_RESULT
 	
 )
