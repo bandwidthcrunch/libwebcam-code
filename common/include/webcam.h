@@ -397,10 +397,11 @@ typedef struct _CControlChoice {
 	/// Note that this index is not necessarily zero-based and can therefore @a not
 	/// be used as an index into CControl#choices#list[].
 	int				index;
+	int 			id;
 
 	/// The name of the choice.
 	/// This member is never NULL.
-	char			* name;
+	char			name[32];
 
 } CControlChoice;
 
@@ -448,7 +449,7 @@ typedef struct _CControl {
 			/// The @a name fields of the items point to strings within this buffer,
 			/// so there is no need to work with this member directly except
 			/// freeing the buffer if the control is disposed of.
-			char			* names;
+			//char			* names;
 
 		} choices;
 	};

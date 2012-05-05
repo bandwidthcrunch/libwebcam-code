@@ -861,13 +861,12 @@ CResult c_enum_controls (CHandle hDevice, CControl *controls, unsigned int *size
 			current->choices.count = elem->control.choices.count;
 			current->choices.list = (CControlChoice *)((char *)controls + choices_offset);
 			choices_offset += elem->control.choices.count * sizeof(CControlChoice);
-			current->choices.names = (char *)controls + choices_offset;
+			//current->choices.names = (char *)controls + choices_offset;
 
 			int index;
 			for(index = 0; index < elem->control.choices.count; index++) {
 				int name_length = strlen(elem->control.choices.list[index].name);
 				current->choices.list[index].index = elem->control.choices.list[index].index;
-				current->choices.list[index].name = (char *)controls + choices_offset;
 				memcpy(current->choices.list[index].name, elem->control.choices.list[index].name, name_length + 1);
 				assert(choices_offset + name_length < req_size);
 				choices_offset += name_length + 1;
@@ -1185,66 +1184,49 @@ static CResult create_control_choices (Control *ctrl, struct v4l2_queryctrl *v4l
 {
 	CResult ret = C_SUCCESS;
 
-	int choices_count = v4l2_ctrl->maximum - v4l2_ctrl->minimum + 1;
-	ctrl->control.choices.count = choices_count;
-
+	//int choices_count = v4l2_ctrl->maximum - v4l2_ctrl->minimum + 1;
+	ctrl->control.choices.count = 0;
+	ctrl->control.choices.list = NULL;
 	// Allocate memory for the choices.names and choices.list members
-	ctrl->control.choices.names = (char *)malloc(choices_count * V4L2_MENU_CTRL_MAX_NAME_SIZE);
-	if(ctrl->control.choices.names == NULL) {
-		ret = C_NO_MEMORY;
-		goto done;
-	}
-	ctrl->control.choices.list = (CControlChoice *)malloc(choices_count * sizeof(CControlChoice));
-	if(ctrl->control.choices.list == NULL) {
-		ret = C_NO_MEMORY;
-		goto done;
-	}
+	//ctrl->control.choices.names = (char *)malloc(choices_count * V4L2_MENU_CTRL_MAX_NAME_SIZE);
+	
+	//if(ctrl->control.choices.names == NULL) {
+	//	ret = C_NO_MEMORY;
+	//	goto done;
+	//}
+	//ctrl->control.choices.list = (CControlChoice *)malloc(choices_count * sizeof(CControlChoice));
+	//if(ctrl->control.choices.list == NULL) {
+	//	ret = C_NO_MEMORY;
+	//	goto done;
+	//}
 
 	// Query the menu items of the given control and transform them
 	// into CControlChoice.
-	struct v4l2_querymenu v4l2_menu = { .id = v4l2_ctrl->id };
-	for(v4l2_menu.index = v4l2_ctrl->minimum; v4l2_menu.index <= v4l2_ctrl->maximum; v4l2_menu.index++) {
-		int choice_index = v4l2_menu.index - v4l2_ctrl->minimum;
-		if(ioctl(v4l2_dev, VIDIOC_QUERYMENU, &v4l2_menu)) {
-			if(errno == EINVAL) {
-#ifdef V4L2_CID_EXPOSURE_AUTO
-				// Some newer versions of the UVC driver implement an 'Exposure, Auto'
-				// menu control whose menu choices don't have contiguous IDs
-				// but { 1, 2, 4, 8 } instead.
-				if(v4l2_ctrl->id == V4L2_CID_EXPOSURE_AUTO && errno == EINVAL &&
-						v4l2_menu.index == 0) {
-					print_libwebcam_error(
-						"Unsupported V4L2_CID_EXPOSURE_AUTO control with a non-contiguous \n"
-						"  range of choice IDs found");
-				}
-				else
-#endif
-				{
-					print_libwebcam_error(
-						"Invalid menu control choice range encountered.\n"
-						"  Indicated range is [ %d .. %d ] but querying choice %d failed.",
-						v4l2_ctrl->minimum, v4l2_ctrl->maximum, v4l2_menu.index
-					);
-				}
-				ret = C_NOT_IMPLEMENTED;
-				goto done;
-			}
-			ret = C_V4L2_ERROR;
-			goto done;
-		}
-		ctrl->control.choices.list[choice_index].index = v4l2_menu.index;
-		ctrl->control.choices.list[choice_index].name = ctrl->control.choices.names + choice_index * V4L2_MENU_CTRL_MAX_NAME_SIZE;
-		if(strlen((char *)v4l2_menu.name))
-			memcpy(ctrl->control.choices.list[choice_index].name, v4l2_menu.name, V4L2_MENU_CTRL_MAX_NAME_SIZE);
-		else
-			snprintf(ctrl->control.choices.list[choice_index].name, V4L2_MENU_CTRL_MAX_NAME_SIZE, "%d", v4l2_menu.index);
+	struct v4l2_querymenu v4l2_menu = {0};
+	
+	v4l2_menu.id = v4l2_ctrl->id;
 
+	for(v4l2_menu.index = v4l2_ctrl->minimum; v4l2_menu.index <= v4l2_ctrl->maximum; v4l2_menu.index++) {
+		if(ioctl(v4l2_dev, VIDIOC_QUERYMENU, &v4l2_menu) < 0)
+        	continue;
+		
+		ctrl->control.choices.count++;
+			
+		if(!ctrl->control.choices.list)
+			ctrl->control.choices.list = (CControlChoice *)malloc(sizeof(CControlChoice));
+		else
+			ctrl->control.choices.list = (CControlChoice *)realloc(ctrl->control.choices.list, ctrl->control.choices.count * sizeof(CControlChoice));
+
+		
+		ctrl->control.choices.list[ctrl->control.choices.count-1].index = v4l2_menu.index;
+		ctrl->control.choices.list[ctrl->control.choices.count-1].id = v4l2_menu.id;
+		if(strlen((char *)v4l2_menu.name))
+			memcpy(ctrl->control.choices.list[ctrl->control.choices.count-1].name, v4l2_menu.name, V4L2_MENU_CTRL_MAX_NAME_SIZE);
+		else
+			snprintf(ctrl->control.choices.list[ctrl->control.choices.count-1].name, V4L2_MENU_CTRL_MAX_NAME_SIZE, "%d", v4l2_menu.index);
 	}
 
-done:
 	if(ret != C_SUCCESS) {
-		if(ctrl->control.choices.names)
-			free(ctrl->control.choices.names);
 		if(ctrl->control.choices.list)
 			free(ctrl->control.choices.list);
 	}
@@ -1383,8 +1365,8 @@ static void delete_control (Control *ctrl)
 	if(ctrl->control.type == CC_TYPE_CHOICE) {
 		if(ctrl->control.choices.list)
 			free(ctrl->control.choices.list);
-		if(ctrl->control.choices.names)
-			free(ctrl->control.choices.names);
+		//if(ctrl->control.choices.names)
+		//	free(ctrl->control.choices.names);
 	}
 	if(ctrl->control.name)
 		free(ctrl->control.name);
