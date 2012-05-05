@@ -57,7 +57,7 @@ set_target_properties (webcam_static PROPERTIES
 
 # create libwebcam.pc (for pkg-config)
 execute_process (
-	COMMAND			sh -c "sed -e 's_<--PREFIX--!>_${CMAKE_INSTALL_PREFIX}_g' ${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig/libwebcam.pc_base  > ${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig/libwebcam.pc"
+	COMMAND			sh -c "sed -e 's_<--PREFIX--!>_${CMAKE_INSTALL_PREFIX}_g' ${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig/libwebcam.pc_base  > ${CMAKE_CURRENT_BINARY_DIR}/libwebcam.pc"
 	RESULT_VARIABLE		PC_EXECUTE_RESULT
 	ERROR_QUIET
 )
@@ -94,7 +94,7 @@ install (
 # Default permissions for PROGRAMS files:  rwxr-xr-x
 # Note that having absolute paths here requires CPACK_SET_DESTDIR to be set to "ON".
 install (
-	FILES	pkgconfig/libwebcam.pc
+	FILES	${CMAKE_CURRENT_BINARY_DIR}/libwebcam.pc
 	DESTINATION 	${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
 
