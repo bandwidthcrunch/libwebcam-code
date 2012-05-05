@@ -214,6 +214,22 @@ static int file_exists (char * fileName)
 }
 
 static CResult
+save_controls (CHandle hDevice, const char* filename)
+{
+    int ret = C_SUCCESS;
+    ret = c_save_controls (hDevice, filename);
+    return ret;
+}
+
+static CResult
+load_controls (CHandle hDevice, const char* filename)
+{
+    int ret = C_SUCCESS;
+	ret = c_load_controls (hDevice, filename);
+    return ret;
+}
+
+static CResult
 list_controls (CHandle hDevice)
 {
 	CResult ret;
@@ -951,6 +967,12 @@ main (int argc, char **argv)
 			print_handle_error(handle, "Unable to set new control value", res);
 			goto done;
 		}
+	}
+	else if(args_info.save_ctrl_given) {
+		res = save_controls( handle, args_info.save_ctrl_arg);
+	}
+	else if(args_info.load_ctrl_given) {
+		res = load_controls( handle, args_info.load_ctrl_arg);
 	}
 
 	// Clean up

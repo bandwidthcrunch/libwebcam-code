@@ -201,6 +201,8 @@ typedef enum _CControlFlags {
 	CC_IS_RELATIVE			= 1 << 9,
 	// The control triggers an action.
 	CC_IS_ACTION			= 1 << 10,
+    //The control needs to be set (used for save/restore)
+    CC_NEED_SET             = 1 << 11,
 
 } CControlFlags;
 
@@ -701,6 +703,9 @@ extern CResult		c_enum_frame_intervals (CHandle hDevice, const CPixelFormat *pix
 extern CResult		c_enum_controls (CHandle hDevice, CControl *controls, unsigned int *size, unsigned int *count);
 extern CResult		c_set_control (CHandle hDevice, CControlId control_id, const CControlValue *value);
 extern CResult		c_get_control (CHandle hDevice, CControlId control_id, CControlValue *value);
+
+extern CResult		c_save_controls (CHandle hDevice, const char *filename);
+extern CResult		c_load_controls (CHandle hDevice, const char *filename);
 
 extern CResult		c_enum_events (CHandle hDevice, CEvent *events, unsigned int *size, unsigned int *count);
 extern CResult		c_subscribe_event (CHandle hDevice, CEventId event_id, CEventHandler handler, void *context);

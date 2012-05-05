@@ -39,6 +39,8 @@ const char *gengetopt_args_info_help[] = {
   "  -g, --get=control        Retrieve the current control value",
   "  -s, --set=control        Set a new control value\n                             (For negative values: -s 'My Control' -- -42)",
   "  -f, --formats            List available frame formats",
+  "  -S, --save=filename      Save device controls state to a file",
+  "  -L, --load=filename      Load device controls state from a file",
     0
 };
 
@@ -74,6 +76,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->get_given = 0 ;
   args_info->set_given = 0 ;
   args_info->formats_given = 0 ;
+  args_info->save_ctrl_given = 0 ;
+  args_info->load_ctrl_given = 0 ;
 }
 
 static
@@ -90,7 +94,10 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->get_orig = NULL;
   args_info->set_arg = NULL;
   args_info->set_orig = NULL;
-  
+  args_info->save_ctrl_arg = NULL;
+  args_info->save_ctrl_orig = NULL;
+  args_info->load_ctrl_arg = NULL;
+  args_info->load_ctrl_orig = NULL; 
 }
 
 static
@@ -109,6 +116,8 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->get_help = gengetopt_args_info_help[8] ;
   args_info->set_help = gengetopt_args_info_help[9] ;
   args_info->formats_help = gengetopt_args_info_help[10] ;
+  args_info->save_ctrl_help = gengetopt_args_info_help[11] ;
+  args_info->load_ctrl_help = gengetopt_args_info_help[12] ;
 }
 
 void
@@ -199,7 +208,10 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->get_orig));
   free_string_field (&(args_info->set_arg));
   free_string_field (&(args_info->set_orig));
-  
+  free_string_field (&(args_info->save_ctrl_arg));
+  free_string_field (&(args_info->save_ctrl_orig));
+  free_string_field (&(args_info->load_ctrl_arg));
+  free_string_field (&(args_info->load_ctrl_orig));
   
   for (i = 0; i < args_info->inputs_num; ++i)
     free (args_info->inputs [i]);
@@ -255,6 +267,10 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "set", args_info->set_orig, 0);
   if (args_info->formats_given)
     write_into_file(outfile, "formats", 0, 0 );
+  if (args_info->save_ctrl_given)
+    write_into_file(outfile, "save", args_info->save_ctrl_orig, 0 );
+  if (args_info->load_ctrl_given)
+    write_into_file(outfile, "save", args_info->load_ctrl_orig, 0 );
   
 
   i = EXIT_SUCCESS;
@@ -500,6 +516,8 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "get",	1, NULL, 'g' },
         { "set",	1, NULL, 's' },
         { "formats",0, NULL, 'f' },
+        { "save",   1, NULL, 'S' },
+        { "load",   1, NULL, 'L' },
         { NULL,	    0, NULL, 0 }
       };
 
@@ -625,7 +643,30 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             goto failure;
         
           break;
-
+	    case 'S':	/* save controls to a file.  */
+        
+        
+          if (update_arg( (void *)&(args_info->save_ctrl_arg), 
+               &(args_info->save_ctrl_orig), &(args_info->save_ctrl_given),
+              &(local_args_info.save_ctrl_given), optarg, 0, 0, ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "save", 'S',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'L':	/* load controls from a file.  */
+        
+        
+          if (update_arg( (void *)&(args_info->load_ctrl_arg), 
+               &(args_info->load_ctrl_orig), &(args_info->load_ctrl_given),
+              &(local_args_info.load_ctrl_given), optarg, 0, 0, ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "load", 'L',
+              additional_error))
+            goto failure;
+        
+          break;
         case 0:	/* Long option with no short option */
         case '?':	/* Invalid option.  */
           /* `getopt_long' already printed an error message.  */

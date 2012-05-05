@@ -54,6 +54,12 @@ struct gengetopt_args_info
   char * set_orig;	/**< @brief Set a new control value\n(For negative values: -s 'My Control' -- -42) original value given at command line.  */
   const char *set_help; /**< @brief Set a new control value\n(For negative values: -s 'My Control' -- -42) help description.  */
   const char *formats_help; /**< @brief List available frame formats help description.  */
+  char * save_ctrl_arg;	 /**< @brief save controls to a file.  */
+  char * save_ctrl_orig;	/**< @brief save controls to file original value given at command line.  */
+  const char *save_ctrl_help; /**< @brief save ctrl help description.  */
+  char * load_ctrl_arg;	 /**< @brief load controls to a file.  */
+  char * load_ctrl_orig;	/**< @brief load controls to file original value given at command line.  */
+  const char *load_ctrl_help; /**< @brief load ctrl help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
@@ -66,6 +72,8 @@ struct gengetopt_args_info
   unsigned int get_given ;	/**< @brief Whether get was given.  */
   unsigned int set_given ;	/**< @brief Whether set was given.  */
   unsigned int formats_given ;	/**< @brief Whether formats was given.  */
+  unsigned int save_ctrl_given; /**< @brief Whether save ctrl was given.  */
+  unsigned int load_ctrl_given; /**< @brief Whether load ctrl was given.  */
 
   char **inputs ; /**< @brief unamed options (options without names) */
   unsigned inputs_num ; /**< @brief unamed options number */
