@@ -58,7 +58,7 @@ add_definitions (-DHAVE_CONFIG_H)
 
 #create man pages
 execute_process (
-	COMMAND			sh -c "rm -f ${CMAKE_CURRENT_SOURCE_DIR}/*.gz; cp ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1_ ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1; cp ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1_ ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl-${UVCDYNCTRL_VERSION}.1; gzip --best ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl-${UVCDYNCTRL_VERSION}.1; gzip --best ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1;"
+	COMMAND			sh -c "rm -f ${CMAKE_CURRENT_BINARY_DIR}/*.gz; cp ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1_ ${CMAKE_CURRENT_BINARY_DIR}/uvcdynctrl.1; cp ${CMAKE_CURRENT_SOURCE_DIR}/uvcdynctrl.1_ ${CMAKE_CURRENT_BINARY_DIR}/uvcdynctrl-${UVCDYNCTRL_VERSION}.1; gzip --best ${CMAKE_CURRENT_BINARY_DIR}/uvcdynctrl-${UVCDYNCTRL_VERSION}.1; gzip --best ${CMAKE_CURRENT_BINARY_DIR}/uvcdynctrl.1;"
 	RESULT_VARIABLE		MAN_BUILD_RESULT
 	
 )
@@ -114,7 +114,7 @@ install (
 	PATTERN ".git" EXCLUDE
 )
 install (
-	FILES	uvcdynctrl.1.gz uvcdynctrl-${UVCDYNCTRL_VERSION}.1.gz 
+	FILES	${CMAKE_CURRENT_BINARY_DIR}/uvcdynctrl.1.gz ${CMAKE_CURRENT_BINARY_DIR}/uvcdynctrl-${UVCDYNCTRL_VERSION}.1.gz 
 	DESTINATION share/man/man1
 )
 
