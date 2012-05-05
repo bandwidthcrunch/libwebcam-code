@@ -38,6 +38,9 @@ struct gengetopt_args_info
   char * import_arg;	/**< @brief Import dynamic controls from an XML file.  */
   char * import_orig;	/**< @brief Import dynamic controls from an XML file original value given at command line.  */
   const char *import_help; /**< @brief Import dynamic controls from an XML file help description.  */
+  char * addctrl_arg;	/**< @brief Import dynamic controls for vid from default location.  */
+  char * addctrl_orig;	/**< @brief Import dynamic controls for vid given at command line from default location.  */
+  const char *addctrl_help; /**< @brief Enable addctrl help description.  */
   int verbose_flag;	/**< @brief Enable verbose output (default=off).  */
   const char *verbose_help; /**< @brief Enable verbose output help description.  */
   char * device_arg;	/**< @brief Specify the device to use (default='video0').  */
@@ -56,6 +59,7 @@ struct gengetopt_args_info
   unsigned int version_given ;	/**< @brief Whether version was given.  */
   unsigned int list_given ;	/**< @brief Whether list was given.  */
   unsigned int import_given ;	/**< @brief Whether import was given.  */
+  unsigned int addctrl_given ;	/**< @brief Whether addctrl was given.  */
   unsigned int verbose_given ;	/**< @brief Whether verbose was given.  */
   unsigned int device_given ;	/**< @brief Whether device was given.  */
   unsigned int clist_given ;	/**< @brief Whether clist was given.  */

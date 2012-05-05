@@ -10,14 +10,11 @@
 ###################################################################################################
 
 # Constants
-version=0.2
+version=0.3
 
 # Run-time configuration
-xmlpath=/etc/udev/data
 debug=1
 uvcdynctrlpath=uvcdynctrl
-
-
 
 # Determine log destination
 if [ "$debug" != 0 ]; then
@@ -60,37 +57,13 @@ if [ "$ID_USB_DRIVER" != "uvcvideo" ]; then
 	exit 4
 fi
 
-# Make sure the vendor directory ($xmlpath/VID) exists
-vendordir="$xmlpath/$vid"
-if [ ! -d "$vendordir" ]; then
-	echo "ERROR: Vendor directory '$vendordir' not found." >> $logfile
-	exit 5
-fi
-
-# Look for device specific XML files ($xmlpath/VID/PID/*.xml)
-if [ ! -z $pid ]; then
-	productdir="$xmlpath/$vid/$pid"
-	if [ -d "$productdir" ]; then
-		for file in $productdir/*.xml; do
-			if [ -f "$file" ]; then
-				echo "Found product XML file: $file" >> $logfile
-				cmd="$uvcdynctrlpath -d $DEVNAME -i $file"
-				echo "Executing command: '$cmd'" >> $logfile
-				$cmd >> $logfile 2>&1
-			fi
-		done
-	fi
-fi
-
-# Look for vendor specific XML files ($xmlpath/VID/*.xml)
-for file in $vendordir/*.xml; do
-	if [ -f "$file" ]; then
-		echo "Found vendor XML file: $file" >> $logfile
-		cmd="$uvcdynctrlpath -d $DEVNAME -i $file"
-		echo "Executing command: '$cmd'" >> $logfile
-		$cmd >> $logfile 2>&1
-	fi
-done
+#uvcdynctrl handles the data path internally
+# if we want to set device specific configuration we should use xmlpath/VID/PID.xml format
+# if PID.xml is not found all xml files inside xmlpath/VID will be imported 
+# Path is handled internaly by uvcdynctrl ( usage: uvcdynctrl --addctrl=vid[:pid] ), pid is optional
+cmd="$uvcdynctrlpath -d $DEVNAME --addctrl=$vid:$pid"
+echo "Executing command: '$cmd'" >> $logfile
+$cmd >> $logfile 2>&1
 
 # Write log footer
 echo "==============================================================================" >> $logfile

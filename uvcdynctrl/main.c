@@ -23,6 +23,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <dirent.h>
+#include <fnmatch.h>
+#include <ctype.h>
 #include <assert.h>
 #include <unistd.h>
 #include <errno.h>
@@ -35,6 +38,7 @@
 #define __user
 #include <linux/media.h>
 
+#include "config.h"
 #include "cmdline.h"
 #include "controls.h"
 
@@ -605,6 +609,84 @@ done:
 	return ret;
 }
 
+/*
+ * join path strings
+ */
+static char* 
+path_cat (const char * str1, char * str2) 
+{ 
+	size_t str1_len = strlen (str1); 
+	size_t str2_len = strlen (str2);
+	int nc;
+	
+	if ((str1[str1_len] != '/') && (str2[0] != '/')) nc = 2;
+	else nc = 1;
+	 
+	char * result; 
+	result = malloc ((str1_len + str2_len + nc) * sizeof * result); 
+	strcpy (result, str1); 
+	int i, j;
+	i = str1_len;
+	if (nc > 1) result[i] = '/';
+	i++; 
+	for (j = 0; ((i <(str1_len + str2_len + (nc-1))) && (j <str2_len)); j++) 
+	{ 
+		result [i] = str2 [j];
+		i++; 
+	}
+	result [str1_len + str2_len + (nc-1)] = '\0'; 
+	return result; 
+}
+
+
+/*
+ * get a xml filename NULL terminated list from data dir 
+ */
+static char**
+get_filename (const char *dir_path, const char *vid)
+{
+	struct dirent * dp;
+	struct dirent * sdp;
+	char** file_list;
+	int nf=1;
+	DIR * dir = opendir(dir_path);
+	
+	file_list = calloc(1, sizeof(file_list));
+	file_list[0] = NULL;
+	printf ( "checking dir: %s \n", dir_path);
+	while ((dp = readdir(dir)) != NULL) 
+	{
+		if((dp->d_type == DT_DIR) && (fnmatch("[[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]]", dp->d_name, 0) == 0))
+		{
+			if( strcasecmp(vid, dp->d_name) != 0)
+			{
+				/*doesn't match - clean up and move to the next entry*/
+				continue;
+			}
+			
+			char *tmp = path_cat (dir_path, dp->d_name);
+			printf("found dir: %s \n", dp->d_name);
+			DIR * subdir = opendir(tmp);
+			while ((sdp = readdir(subdir)) != NULL) 
+			{
+				if( fnmatch("*.xml", sdp->d_name, 0) == 0 )
+				{
+					file_list[nf-1] = path_cat (tmp, sdp->d_name);
+					printf("found: %s \n", file_list[nf-1]);
+					nf++;
+					file_list = realloc(file_list,nf*sizeof(file_list));
+					file_list[nf-1] = NULL;   
+				} 
+			}
+			closedir(subdir);
+			free (tmp);
+			tmp = NULL;
+		}
+	} 
+	if(!file_list[0]) printf("Could not find %s entry\n", vid);
+	closedir (dir);
+	return(file_list);
+}
 
 static CResult
 add_control_mappings(const char *filename)
@@ -715,7 +797,93 @@ main (int argc, char **argv)
 		res = add_control_mappings(args_info.import_arg);
 		goto done;
 	}
-
+	// Import dynamic controls from XML files at default location
+	if(args_info.addctrl_given) {
+		// list all xml files at default data/vid dir
+		int nf=0;
+		char vid[5];
+		char pid[5];
+		short pid_set = 0;
+		if(fnmatch("[[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]]:[[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]]", args_info.addctrl_arg, 0))
+		{
+			if(fnmatch("[[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]]", args_info.addctrl_arg, 0))
+			{
+				printf("%s invalid: set at least a valid vid value, :pid is optional\n", args_info.addctrl_arg);
+				goto done;
+			}
+			else
+			{
+				/*extract vid and reset pid*/
+				int c = 0;
+				for (c = 0; c < 4; c++)
+				{
+					vid[c] = args_info.addctrl_arg[c];
+					pid[c] = 0;
+				}
+				vid[4] = '\0';
+				pid[4] = '\0';
+			}
+		}
+		else 
+		{
+			/*extract vid and pid*/
+			int c = 0;
+			for (c = 0; c < 4; c++)
+			{
+				vid[c] = args_info.addctrl_arg[c];
+				pid[c] = args_info.addctrl_arg[c+5];
+			}
+			vid[4] = '\0';
+			pid[4] = '\0';
+			pid_set = 1; /*flag pid.xml check*/
+			//printf("vid:%s pid:%s\n", vid, pid);
+		}
+		
+		/* get xml file list from DATA_DIR/vid/ */ 
+		char **xml_files = get_filename (DATA_DIR, vid);
+ 
+		/*check for pid.xml*/
+		char fname[9];
+		strcpy(fname, pid);
+		strcat(fname,".xml");
+		if(pid_set)
+		{
+			pid_set = 0; /*reset*/
+			nf=0;
+			while (xml_files[nf] != NULL)
+			{
+				if ( strcasecmp(fname, xml_files[nf]) == 0)
+					pid_set = 1; /*file exists so flag it*/
+				nf++;
+			}
+		}
+		
+		/*parse xml files*/
+		nf = 0;
+		while (xml_files[nf] != NULL)
+		{
+			/* if pid was set and pid.xml exists parse it*/
+			if(pid_set)
+			{
+				if ((strcasecmp(fname, xml_files[nf]) == 0))
+				{
+					printf ( "Parsing: %s \n", xml_files[nf]);
+					res = add_control_mappings(xml_files[nf]);
+				}
+			}
+			else /* parse all xml files inside vid dir */
+			{
+				printf ( "Parsing: %s \n", xml_files[nf]);
+				res = add_control_mappings(xml_files[nf]);
+			}
+			free(xml_files[nf]);
+			xml_files[nf]=NULL;
+			nf++;
+		}
+		free(xml_files);
+		goto done;
+	}
+	
 	// Open the device
 	handle = c_open_device(args_info.device_arg);
 	if(!handle) {

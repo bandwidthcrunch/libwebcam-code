@@ -32,6 +32,7 @@ const char *gengetopt_args_info_help[] = {
   "  -V, --version            Print version and exit",
   "  -l, --list               List available cameras",
   "  -i, --import=filename    Import dynamic controls from an XML file",
+  "  -a, --addctrl=vid        Import dynamic controls for vid from default location",
   "  -v, --verbose            Enable verbose output  (default=off)",
   "  -d, --device=devicename  Specify the device to use  (default=`video0')",
   "  -c, --clist              List available controls",
@@ -66,6 +67,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->version_given = 0 ;
   args_info->list_given = 0 ;
   args_info->import_given = 0 ;
+  args_info->addctrl_given = 0 ;
   args_info->verbose_given = 0 ;
   args_info->device_given = 0 ;
   args_info->clist_given = 0 ;
@@ -79,6 +81,8 @@ void clear_args (struct gengetopt_args_info *args_info)
 {
   args_info->import_arg = NULL;
   args_info->import_orig = NULL;
+  args_info->addctrl_arg = NULL;
+  args_info->addctrl_orig = NULL;
   args_info->verbose_flag = 0;
   args_info->device_arg = gengetopt_strdup ("video0");
   args_info->device_orig = NULL;
@@ -98,13 +102,13 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->version_help = gengetopt_args_info_help[1] ;
   args_info->list_help = gengetopt_args_info_help[2] ;
   args_info->import_help = gengetopt_args_info_help[3] ;
-  args_info->verbose_help = gengetopt_args_info_help[4] ;
-  args_info->device_help = gengetopt_args_info_help[5] ;
-  args_info->clist_help = gengetopt_args_info_help[6] ;
-  args_info->get_help = gengetopt_args_info_help[7] ;
-  args_info->set_help = gengetopt_args_info_help[8] ;
-  args_info->formats_help = gengetopt_args_info_help[9] ;
-  
+  args_info->addctrl_help = gengetopt_args_info_help[4] ;
+  args_info->verbose_help = gengetopt_args_info_help[5] ;
+  args_info->device_help = gengetopt_args_info_help[6] ;
+  args_info->clist_help = gengetopt_args_info_help[7] ;
+  args_info->get_help = gengetopt_args_info_help[8] ;
+  args_info->set_help = gengetopt_args_info_help[9] ;
+  args_info->formats_help = gengetopt_args_info_help[10] ;
 }
 
 void
@@ -187,6 +191,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   unsigned int i;
   free_string_field (&(args_info->import_arg));
   free_string_field (&(args_info->import_orig));
+  free_string_field (&(args_info->addctrl_arg));
+  free_string_field (&(args_info->addctrl_orig));
   free_string_field (&(args_info->device_arg));
   free_string_field (&(args_info->device_orig));
   free_string_field (&(args_info->get_arg));
@@ -235,6 +241,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "list", 0, 0 );
   if (args_info->import_given)
     write_into_file(outfile, "import", args_info->import_orig, 0);
+  if (args_info->addctrl_given)
+    write_into_file(outfile, "addctrl", args_info->addctrl_orig, 0);
   if (args_info->verbose_given)
     write_into_file(outfile, "verbose", 0, 0 );
   if (args_info->device_given)
@@ -482,19 +490,20 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
 
       static struct option long_options[] = {
         { "help",	0, NULL, 'h' },
-        { "version",	0, NULL, 'V' },
+        { "version",0, NULL, 'V' },
         { "list",	0, NULL, 'l' },
         { "import",	1, NULL, 'i' },
-        { "verbose",	0, NULL, 'v' },
+        { "addctrl",1, NULL, 'a' },
+        { "verbose",0, NULL, 'v' },
         { "device",	1, NULL, 'd' },
         { "clist",	0, NULL, 'c' },
         { "get",	1, NULL, 'g' },
         { "set",	1, NULL, 's' },
-        { "formats",	0, NULL, 'f' },
-        { NULL,	0, NULL, 0 }
+        { "formats",0, NULL, 'f' },
+        { NULL,	    0, NULL, 0 }
       };
 
-      c = getopt_long (argc, argv, "hVli:vd:cg:s:f", long_options, &option_index);
+      c = getopt_long (argc, argv, "hVli:a:vd:cg:s:fS:L:", long_options, &option_index);
 
       if (c == -1) break;	/* Exit from `while (1)' loop.  */
 
@@ -534,6 +543,18 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             goto failure;
         
           break;
+        case 'a':	/* Add dynamic controls from XML files at default location  */
+        
+        
+          if (update_arg( (void *)&(args_info->addctrl_arg), 
+               &(args_info->addctrl_orig), &(args_info->addctrl_given),
+              &(local_args_info.addctrl_given), optarg, 0, 0, ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "addctrl", 'a',
+              additional_error))
+            goto failure;
+        
+           break;
         case 'v':	/* Enable verbose output.  */
         
         
