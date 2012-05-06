@@ -961,13 +961,13 @@ static CResult parse_dynctrl_file (const char *file_name, ParseContext *ctx)
 	}
 
 	// Free the document tree if there was an error
-	if(ret) {
-		xmlFreeDoc(doc);
-		doc = NULL;
-	}
+	//if(ret) {
+	//	xmlFreeDoc(doc);
+	//	doc = NULL;
+	//}
 
 	// Return the document (or NULL if there was an error)
-	*xml_doc = doc;
+	//*xml_doc = doc;
 	
 	// Clean up
 	xmlFreeParserCtxt(parser);
@@ -1524,8 +1524,8 @@ static CResult process_meta (const xmlNode *node_meta, ParseContext *ctx)
 static CResult process_dynctrl_doc (ParseContext *ctx)
 {
 	CResult ret = C_SUCCESS;
-	if(!xml_doc)
-		return C_INVALID_ARG;
+	//if(!xml_doc)
+	//	return C_INVALID_ARG;
 
 	xmlNode *node_root = xmlDocGetRootElement(ctx->xml_doc);
 	assert(node_root);
