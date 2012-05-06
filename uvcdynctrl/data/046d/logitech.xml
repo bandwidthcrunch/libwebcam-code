@@ -101,8 +101,8 @@
 			<value>0x009A0907</value><!-- V4L2_CID_CAMERA_CLASS_BASE + 7 -->
 		</constant>
 		<constant type="integer">
-			<id>V4L2_CID_FOCUS</id>
-			<value>0x0A046D04</value>
+			<id>V4L2_CID_FOCUS_ABSOLUTE</id>
+			<value>0x009A090A</value>
 		</constant>
 		<constant type="integer">
 			<id>V4L2_CID_LED1_MODE</id>
@@ -381,7 +381,7 @@
 				<uvc_type>UVC_CTRL_DATA_TYPE_UNSIGNED</uvc_type>
 			</uvc>
 			<v4l2>
-				<id>V4L2_CID_FOCUS</id>
+				<id>V4L2_CID_FOCUS_ABSOLUTE</id>
 				<v4l2_type>V4L2_CTRL_TYPE_INTEGER</v4l2_type>
 			</v4l2>
 		</mapping>
