@@ -230,6 +230,8 @@ typedef enum _CControlType {
 	CC_TYPE_WORD,
 	/// The control accepts 32-bit integer values.
 	CC_TYPE_DWORD,
+	/// The control accepts 32-bit unsigned values.
+	CC_TYPE_BUTTON,
 
 } CControlType;
 
@@ -379,7 +381,7 @@ typedef struct _CControlValue {
 		/// The value of the control for number based controls.
 		/// This member is valid for the following control types:
 		/// #CC_TYPE_BOOLEAN, #CC_TYPE_CHOICE, #CC_TYPE_BYTE,
-		/// #CC_TYPE_WORD, #CC_TYPE_DWORD
+		/// #CC_TYPE_WORD, #CC_TYPE_DWORD #CC_TYPE_BUTTON
 		int				value;
 
 		/// The value of the control for raw cntrols.

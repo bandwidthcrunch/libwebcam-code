@@ -1641,7 +1641,7 @@ static Control *create_v4l2_control (Device *device, struct v4l2_queryctrl *v4l2
 #ifdef ENABLE_RAW_CONTROLS
 		case V4L2_CTRL_TYPE_STRING:		type = CC_TYPE_RAW;			break;
 #endif
-		case V4L2_CTRL_TYPE_BUTTON:		// TODO implement
+		case V4L2_CTRL_TYPE_BUTTON:		type = CC_TYPE_BUTTON;		break;
 		case V4L2_CTRL_TYPE_INTEGER64:	// TODO implement
 			ret = C_NOT_IMPLEMENTED;
 			print_libwebcam_error("Warning: Unsupported V4L2 control type encountered: ctrl_id = 0x%08X, "

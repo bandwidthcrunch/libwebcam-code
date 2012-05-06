@@ -86,6 +86,7 @@ const char *get_control_type (CControlType type)
 		case CC_TYPE_BYTE:		return "Byte";
 		case CC_TYPE_WORD:		return "Word";
 		case CC_TYPE_DWORD:		return "Dword";
+		case CC_TYPE_BUTTON:	return "Button";
 		default:
 			return "<Unknown>";
 	}
