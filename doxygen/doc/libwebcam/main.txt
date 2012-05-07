@@ -32,14 +32,14 @@ It is easy to add new features without breaking application compatibility and th
 
 \section sec_introduction Latest version
 
-Note that the latest version of the Webcam Library and this API documentation can always be found on the <a href="http://www.quickcamteam.net/software/libwebcam/">QuickCam Team</a> website.
+Note that the latest version of the Webcam Library and this API documentation can always be found on the <a href="http://sourceforge.net/p/libwebcam">Webcam-tools</a> website.
 
 
 \section sec_feedback Questions and feedback
 
 There is a forum for developers and users of the Webcam Library. Please feel free to post your questions and comments:
 
-<a href="http://forums.quickcamteam.net/forumdisplay.php?fid=7">QuickCam Team discussion forums</a>
+<a href="http://sourceforge.net/p/libwebcam/discussion/">Webcam-tools discussion forums</a>
 
 
 */
