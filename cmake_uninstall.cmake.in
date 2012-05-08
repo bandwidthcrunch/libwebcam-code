@@ -3,6 +3,10 @@ if (NOT EXISTS "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt")
 \"@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt\"")
 endif(NOT EXISTS "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt")
 
+if(POLICY CMP0007)
+   cmake_policy(SET CMP0007 NEW) # or even better, NEW
+endif(POLICY CMP0007)
+
 file(READ "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt" files)
 string(REGEX REPLACE "\n" ";" files "${files}")
 list(REVERSE files)
