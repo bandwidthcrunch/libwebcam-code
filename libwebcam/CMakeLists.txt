@@ -65,7 +65,7 @@ execute_process (
 if (PC_EXECUTE_RESULT)
 	message(ERROR " Unable to parse ${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig/libwebcam.pc_base")
 else (PC_EXECUTE_RESULT)
-	message("** created libwecam.pc")
+	message("** created libwebcam.pc")
 endif (PC_EXECUTE_RESULT)
 
 
@@ -75,7 +75,11 @@ endif (PC_EXECUTE_RESULT)
 #
 
 if (NOT DEFINED CMAKE_INSTALL_LIBDIR)
-	SET(CMAKE_INSTALL_LIBDIR "lib")
+	if (DEFINED LIB_INSTALL_DIR)
+		SET(CMAKE_INSTALL_LIBDIR ${LIB_INSTALL_DIR})
+	else (DEFINED LIB_INSTALL_DIR)
+		SET(CMAKE_INSTALL_LIBDIR "lib")
+	endif (DEFINED LIB_INSTALL_DIR)
 endif (NOT DEFINED CMAKE_INSTALL_LIBDIR)
 
 if (${CMAKE_INSTALL_LIBDIR} MATCHES "^/")
