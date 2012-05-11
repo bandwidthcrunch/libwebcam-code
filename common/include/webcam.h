@@ -57,6 +57,7 @@ enum _CResults {
 	C_NOT_FOUND,			///< Object not found
 	C_BUFFER_TOO_SMALL,		///< Buffer too small
 	C_SYNC_ERROR,			///< Error during data synchronization
+	// 10:
 	C_NO_MEMORY,			///< Out of memory
 	C_NO_HANDLES,			///< Out of handles
 	C_V4L2_ERROR,			///< A Video4Linux2 API call returned an unexpected error
@@ -64,6 +65,13 @@ enum _CResults {
 	C_PARSE_ERROR,			///< A control could not be parsed
 	C_CANNOT_WRITE,			///< Writing not possible (e.g. read-only control)
 	C_CANNOT_READ,			///< Reading not possible (e.g. write-only control)
+	C_INVALID_XU_CONTROL,	///< Invalid XU control has been encountered
+	C_SYSTEM_ERROR,			///< An system call returned an unexpected error
+	C_DEVICE_BUSY,			///< The device is busy
+	// 20:
+	C_WRONG_STATE,			///< The requested operation is invalid at this point
+	C_INVALID_FORMAT,		///< The requested format is not available or not supported
+	C_CONVERSION_ERROR,		///< The format conversion failed (invalid format, buffer size, etc.)
 };
 
 
@@ -177,7 +185,9 @@ typedef enum _CControlId {
 	// Bits per pixel for raw (Bayer) mode
 	CC_LOGITECH_RAW_BITS_PER_PIXEL,
 
-
+	/// Base for raw UVC controls
+	CC_UVC_XU_BASE	= 0xFFFF0000,
+	
 } CControlId;
 
 
@@ -361,8 +371,14 @@ typedef struct _CDevice {
  */
 typedef struct _CControlRawValue {
 	/// Pointer to the raw data.
+	/// Note: Callers must allocate and free this buffer by themselves.
 	void			* data;
 	/// Size of the raw data.
+	/// For controls of type #CC_TYPE_RAW this size must be at least as big as
+	/// the CControl.max.raw.size value of the control in question.
+	/// For controls of type #CC_TYPE_STRING this size minus one must be between the
+	/// the CControl.string.min_length and CControl.string.max_length values
+	/// and must be a multiple of the CControl.string.length_step value.
 	unsigned int	size;
 
 } CControlRawValue;
@@ -387,6 +403,10 @@ typedef struct _CControlValue {
 		/// The value of the control for raw cntrols.
 		/// This member is valid only for control type #CC_TYPE_RAW.
 		CControlRawValue	raw;
+		
+		/// The value of the control for string controls.
+		/// This member is valid only for control type #CC_TYPE_STRING.
+		CControlRawValue	string;
 	};
 
 } CControlValue;
@@ -456,6 +476,19 @@ typedef struct _CControl {
 			//char			* names;
 
 		} choices;
+		
+		/// Attributes for string controls.
+		/// The members of this struct are only valid if the type is #CC_TYPE_STRING.
+		/// Note that the length values do not include the terminating null byte.
+		struct {
+			/// The minimum number of characters required
+			unsigned int	min_length;
+			/// The maximum number of characters allowed
+			unsigned int	max_length;
+			/// The value of which the string length has to be a multiple
+			unsigned int	length_step;
+
+		} string;
 	};
 
 } CControl;

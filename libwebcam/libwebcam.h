@@ -133,6 +133,12 @@ typedef struct _Control {
 	CControl		control;
 	/// V4L2 ioctl mapping (non-0 for V4L2 controls)
 	int				v4l2_control;
+	/// UVC Unit ID of the UVC extension unit to which the control belongs
+	unsigned char	uvc_unitid;
+	/// Control selector of the UVC extension unit control
+	unsigned char	uvc_selector;
+	/// Size of the UVC extension unit control (non-0 for UVC controls)
+	uint16_t		uvc_size;
 	/// Pointer to the next control in the list
 	struct _Control	* next;
 
@@ -161,6 +167,8 @@ typedef struct _Device {
 	CDevice			device;
 	/// Short V4L2 device name (e.g. 'video0')
 	char			v4l2_name[NAME_MAX];
+	/// Short media device name (e.g. 'media0')
+	char				media_name[NAME_MAX];
 	/// Number of handles associated with this device
 	int				handles;
 	/// List of controls supported by this device
@@ -168,6 +176,8 @@ typedef struct _Device {
 	/// Boolean whether the device is still valid, i.e. exists in the system.
 	/// Devices marked as invalid will be cleared out by cleanup_device_list().
 	int				valid;
+	/// Version of the driver behind the device (formatted using KERNEL_VERSION)
+	uint32_t			driver_version;
 	/// Next device in the global device list
 	struct _Device	* next;
 
@@ -220,7 +230,6 @@ typedef struct _HandleList {
 	int				first_free;
 	
 } HandleList;
-
 
 
 /*

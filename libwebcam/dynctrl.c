@@ -28,6 +28,7 @@
 	#define _GNU_SOURCE
 #endif
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <limits.h>
@@ -36,6 +37,7 @@
 #include <stdarg.h>
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
+#include <linux/usb/video.h>
 #include <errno.h>
 #include <iconv.h>
 
@@ -53,6 +55,14 @@
  * Macros
  */
 
+/// get the number of elemts from the array
+#define ARRAY_SIZE(a)		(sizeof(a) / sizeof((a)[0]))
+/// Free a pointer only if it is non-NULL and set it to NULL afterwards
+#define SAFE_FREE(p)		if(p) { free(p); (p) = NULL; }
+/// Zero out a variable
+#define ZERO_STRUCT(s)		memset(&(s), 0, sizeof(s))
+/// Macro to silence unused variable warnings
+#define UNUSED_PARAMETER(x)	(void)x;
 /// Convert a single hex character into its numeric value
 #define HEX_DECODE_CHAR(c)		((c) >= '0' && (c) <= '9' ? (c) - '0' : (tolower(c)) - 'a' + 0xA)
 /// Convert two hex characters into their byte value
@@ -61,7 +71,16 @@
 #define UNICODE_TO_ASCII(s)		(unicode_to_ascii(s, ctx))
 /// Helper macro to convert the UTF-8 strings used by libxml2 into whitespace normalized ASCII
 #define UNICODE_TO_NORM_ASCII(s)	(unicode_to_normalized_ascii(s, ctx))
-
+/// Format string to print a GUID byte array with printf
+#define GUID_FORMAT		"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x"
+/// Argument macro to print a GUID byte array with printf
+#define GUID_ARGS(guid) \
+        (guid)[3],  (guid)[2],  (guid)[1],  (guid)[0], \
+        (guid)[5],  (guid)[4], \
+        (guid)[7],  (guid)[6], \
+        (guid)[8],  (guid)[9], \
+        (guid)[10], (guid)[11], (guid)[12], \
+        (guid)[13], (guid)[14], (guid)[15]
 
 
 /*
@@ -101,8 +120,6 @@ typedef enum _ConstantType {
 		UVC_CTRL_DATA_TYPE_BITMASK,
 	};
 #endif
-
-
 
 /*
  * Types
@@ -1787,6 +1804,367 @@ static CResult create_context (const char *file_name, CDynctrlInfo *info,
 	return C_SUCCESS;
 }
 
+/**************************************************************************************************/
+/*                               Raw controls                                                     */
+/**************************************************************************************************/
+
+/*log functions*/
+void
+wc_log_message(const char *format, ...)
+{
+	va_list ap;
+
+	va_start(ap, format);
+	printf(PRINT_PREFIX);
+	vprintf(format, ap);
+	va_end(ap);
+
+	printf("\n");
+}
+
+
+void
+wc_log_error(const char *format, ...)
+{
+	va_list ap;
+
+	fprintf(stderr, PRINT_PREFIX "ERROR: ");
+
+	va_start(ap, format);
+	vfprintf(stderr, format, ap);
+	va_end(ap);
+
+	fprintf(stderr, ".\n");
+}
+
+
+void
+wc_log_warning(const char *format, ...)
+{
+	va_list ap;
+
+	fprintf(stderr, PRINT_PREFIX "Warning: ");
+
+	va_start(ap, format);
+	vfprintf(stderr, format, ap);
+	va_end(ap);
+
+	fprintf(stderr, ".\n");
+}
+
+
+void
+wc_log_verbose(const char *format, ...)
+{
+	va_list ap;
+
+	if(!HAS_VERBOSE())
+		return;
+
+	va_start(ap, format);
+	printf(PRINT_PREFIX);
+	vprintf(format, ap);
+	va_end(ap);
+
+	printf("\n");
+}
+
+
+static
+int
+query_xu_control(int v4l2_dev, Control *control, uint8_t query, uint16_t size, void *data,
+		const char *log_action)
+{
+	struct uvc_xu_control_query xu_query = {
+		.unit		= control->uvc_unitid,
+		.selector	= control->uvc_selector,
+		.query		= query,
+		.size		= size,
+		.data		= data,
+	};
+	if(ioctl(v4l2_dev, UVCIOC_CTRL_QUERY, &xu_query) != 0) {
+		int res = errno;
+
+		if(log_action == NULL)
+			return res;
+
+		const char *err;
+		switch(res) {
+			case ENOENT:	err = "Extension unit or control not found"; break;
+			case ENOBUFS:	err = "Buffer size does not match control size"; break;
+			case EINVAL:	err = "Invalid request code"; break;
+			case EBADRQC:	err = "Request not supported by control"; break;
+			default:		err = strerror(res); break;
+		}
+		wc_log_error("Unable to %s XU control %s: %s. (System code: %d)",
+				log_action, control->control.name, err, res);
+
+		return res;
+	}
+
+	return 0;
+}
+
+
+/**
+ * Queries information about a given raw control.
+ *
+ * This function uses a custom ioctl to send GET_LEN, GET_INFO, GET_MIN, GET_MAX,
+ * GET_DEF, and GET_RES requests to the device and allocates the appropriate raw
+ * buffers inside CControl.
+ */
+static
+CResult
+init_xu_control(Device *device, Control *control)
+{
+	CResult res = C_SUCCESS;
+	int ret = 0;
+
+	struct {
+		CControlValue *	value;
+		uint8_t			query;
+		const char *	action;
+	} values[] = {
+		{ &control->control.min,	UVC_GET_MIN,	"query minimum value of" },
+		{ &control->control.max,	UVC_GET_MAX,	"query maximum value of" },
+		{ &control->control.def,	UVC_GET_DEF,	"query default value of" },
+		{ &control->control.step,	UVC_GET_RES,	"query step size of" },
+	};
+
+	if(device == NULL || control == NULL || control->control.type != CC_TYPE_RAW)
+		return C_INVALID_ARG;
+
+	int v4l2_dev = open_v4l2_device(device->v4l2_name);
+	if(v4l2_dev < 0)
+		return C_INVALID_DEVICE;
+
+	// Query the control length
+	uint16_t length = 0;
+	ret = query_xu_control(v4l2_dev, control, UVC_GET_LEN,
+			sizeof(control->uvc_size), (void *)&length, "query size of");
+	control->uvc_size = le16toh(length);	// The value from the device is always little-endian
+	if(ret != 0) {
+		res = C_V4L2_ERROR;
+		goto done;
+	}
+	if(control->uvc_size == 0) {
+		wc_log_error("XU control %s reported a size of 0", control->control.name);
+		res = C_INVALID_XU_CONTROL;
+		goto done;
+	}
+
+	// Query the control information (i.e. flags such as supported requests)
+	uint8_t info = 0;
+	ret = query_xu_control(v4l2_dev, control, UVC_GET_INFO,
+			sizeof(info), (void *)&info, "query information about");
+	if(ret != 0) {
+		res = C_V4L2_ERROR;
+		goto done;
+	}
+	control->control.flags =
+		((info & (1 << 0)) ? CC_CAN_READ : 0) |
+		((info & (1 << 1)) ? CC_CAN_WRITE : 0);
+
+	// Query the min/max/def/res values
+	for(unsigned int i = 0; i < ARRAY_SIZE(values); i++) {
+		CControlValue *value = values[i].value;
+
+		// Allocate a buffer for the raw value
+		value->type = control->control.type;
+		value->raw.data = calloc(1, control->uvc_size);
+		if(!value->raw.data) {
+			res = C_NO_MEMORY;
+			goto done;
+		}
+		value->raw.size = control->uvc_size;
+
+		// Query the raw value
+		ret = query_xu_control(v4l2_dev, control, values[i].query,
+				control->uvc_size, value->raw.data, values[i].action);
+		if(ret != 0) {
+			res = C_V4L2_ERROR;
+			goto done;
+		}
+	}
+
+done:
+	if(res != C_SUCCESS) {
+		for(unsigned int i = 0; i < ARRAY_SIZE(values); i++)
+			SAFE_FREE(values[i].value->raw.data);
+	}
+	close(v4l2_dev);
+	return res;
+}
+
+
+/**
+ * Create a libwebcam control from UVC control information.
+ *
+ * @param device	Device to which the control should be appended.
+ * @param entity	GUID of the extension unit to which the control belongs.
+ * @param unit_id	UVC XU ID to which the control belongs.
+ * @param selector	UVC control selector of the control.
+ * @param pret		Pointer to receive the error code in the case of an error.
+ * 					(Can be NULL.)
+ *
+ * @return
+ * 		- NULL if an error occurred. The associated error can be found in @a pret.
+ * 		- Pointer to the newly created control.
+ */
+static
+Control *
+create_xu_control (Device *device, unsigned char entity[], uint16_t unit_id, unsigned char selector, CResult *pret)
+{
+	static unsigned int last_uvc_ctrl_id = CC_UVC_XU_BASE;
+	assert(last_uvc_ctrl_id < 0xFFFFFFFF);
+
+	CResult ret = C_SUCCESS;
+	Control *ctrl = NULL;
+
+	// Create the name for the control.
+	// We don't have a meaningful name here, so we make it up from the GUID and selector.
+	char *name = NULL;
+	int r = asprintf(&name, GUID_FORMAT"/%u", GUID_ARGS(entity), selector);
+	if(r <= 0) {
+		ret = C_NO_MEMORY;
+		goto done;
+	}
+
+	// Create the internal control info structure
+	ctrl = (Control *)malloc(sizeof(*ctrl));
+	if(ctrl) {
+		memset(ctrl, 0, sizeof(*ctrl));
+		ctrl->control.id		= last_uvc_ctrl_id++;
+		ctrl->uvc_unitid		= unit_id;
+		ctrl->uvc_selector		= selector;
+		ctrl->uvc_size			= 0;		// determined by init_xu_control()
+		ctrl->control.name		= name;
+		ctrl->control.type		= CC_TYPE_RAW;
+		ctrl->control.flags		= 0;		// determined by init_xu_control()
+
+		// Initialize the XU control (size, flags, min/max/def/res)
+		ret = init_xu_control(device, ctrl);
+		if(ret) goto done;
+
+		ctrl->control.flags		|= CC_IS_CUSTOM;
+
+		// Add the new control to the control list of the given device
+		ctrl->next = device->controls.first;
+		device->controls.first = ctrl;
+		device->controls.count++;
+	}
+	else {
+		ret = C_NO_MEMORY;
+	}
+
+done:
+	if(ret != C_SUCCESS && ctrl) {
+		SAFE_FREE(ctrl->control.name);
+		SAFE_FREE(ctrl);
+	}
+	if(pret)
+		*pret = ret;
+	return ctrl;
+}
+
+/**
+ * Retrieves the value of a given raw XU control.
+ *
+ * Returns a libwebcam status value to indicate the result of the operation and
+ * sets the handle's last system error unless successful.
+ *
+ * If C_V4L2_ERROR is returned the last system error can mean the following:
+ *   ENOENT    The UVC driver does not know the given control, i.e. the device does
+ *             does not support this particular control (or its extension unit).
+ *   ENOBUFS   The buffer size does not match the size of the XU control.
+ *   EINVAL    An invalid request code was passed.
+ *   EBADRQC   The given request is not supported by the given control.
+ *   EFAULT    The data pointer contains an invalid address.
+ *
+ * @return C_SUCCESS if the read was successful
+ *         C_INVALID_ARG if one of the arguments was NULL or a non-raw control was given
+ *         C_INVALID_DEVICE if the video device node could not be opened
+ *         C_BUFFER_TOO_SMALL if the value's raw buffer is NULL or its size too small
+ *         C_V4L2_ERROR if the UVC driver returned an error; check the handle's system error
+ */
+CResult
+read_xu_control(Device *device, Control *control, CControlValue *value, CHandle hDevice)
+{
+	CResult res = C_SUCCESS;
+
+	if(device == NULL || control == NULL || value == NULL || control->control.type != CC_TYPE_RAW)
+		return C_INVALID_ARG;
+	if(value->raw.data == NULL || value->raw.size < control->uvc_size)
+		return C_BUFFER_TOO_SMALL;
+	if(value->type != CC_TYPE_RAW)
+		return C_INVALID_ARG;
+
+	int v4l2_dev = open_v4l2_device(device->v4l2_name);
+	if(v4l2_dev < 0)
+		return C_INVALID_DEVICE;
+
+	int ret = query_xu_control(v4l2_dev, control, UVC_GET_CUR, control->uvc_size, value->raw.data, NULL);
+	if(ret != 0) {
+		set_last_error(hDevice, ret);
+		res = C_V4L2_ERROR;
+		goto done;
+	}
+
+	value->type		= control->control.type;
+	value->raw.size	= control->uvc_size;
+
+done:
+	close(v4l2_dev);
+	return res;
+}
+
+
+/**
+ * Sets the value of a given raw XU control.
+ *
+ * Returns a libwebcam status value to indicate the result of the operation and
+ * sets the handle's last system error unless successful.
+ *
+ * If C_V4L2_ERROR is returned the last system error can mean the following:
+ *   ENOENT    The UVC driver does not know the given control, i.e. the device does
+ *             does not support this particular control (or its extension unit).
+ *   ENOBUFS   The buffer size does not match the size of the XU control.
+ *   EINVAL    An invalid request code was passed.
+ *   EBADRQC   The given request is not supported by the given control.
+ *   EFAULT    The data pointer contains an invalid address.
+ *
+ * @return C_SUCCESS if the read was successful
+ *         C_INVALID_ARG if one of the arguments was NULL or a non-raw control was given or
+ *                       the value's raw size does not match the control size
+ *         C_INVALID_DEVICE if the video device node could not be opened
+ *         C_V4L2_ERROR if the UVC driver returned an error; check the handle's system error
+ */
+CResult
+write_xu_control(Device *device, Control *control, const CControlValue *value, CHandle hDevice)
+{
+	CResult res = C_SUCCESS;
+
+	if(device == NULL || control == NULL || value == NULL || control->control.type != CC_TYPE_RAW)
+		return C_INVALID_ARG;
+	if(value->raw.size != control->uvc_size)
+		return C_INVALID_ARG;
+	if(value->type != CC_TYPE_RAW)
+		return C_INVALID_ARG;
+
+	int v4l2_dev = open_v4l2_device(device->v4l2_name);
+	if(v4l2_dev < 0)
+		return C_INVALID_DEVICE;
+
+	int ret = query_xu_control(v4l2_dev, control, UVC_SET_CUR, control->uvc_size, value->raw.data, NULL);
+	if(ret != 0) {
+		set_last_error(hDevice, ret);
+		res = C_V4L2_ERROR;
+	}
+
+	close(v4l2_dev);
+	return res;
+}
+
 /*
  * API
  */
@@ -1962,6 +2340,61 @@ CResult c_add_control_mappings (CHandle handle, const char *file_name,
 				CDynctrlInfo *info)
 {
 	return C_NOT_IMPLEMENTED;
+}
+
+CResult c_read_xu_control(CHandle hDevice, unsigned char entity[], uint16_t unit_id, unsigned char selector, CControlValue *value)
+{
+	
+	static unsigned int last_uvc_ctrl_id = CC_UVC_XU_BASE;
+	assert(last_uvc_ctrl_id < 0xFFFFFFFF);
+
+	CResult ret = C_SUCCESS;
+	Control *ctrl = NULL;
+
+	// Create the name for the control.
+	// We don't have a meaningful name here, so we make it up from the GUID and selector.
+	char *name = NULL;
+	int r = asprintf(&name, GUID_FORMAT"/%u", GUID_ARGS(entity), selector);
+	if(r <= 0) {
+		ret = C_NO_MEMORY;
+		goto done;
+	}
+	// Check the given handle and arguments
+    if(!initialized)
+        return C_INIT_ERROR;
+    if(!HANDLE_OPEN(hDevice))
+        return C_INVALID_HANDLE;
+    if(!HANDLE_VALID(hDevice))
+        return C_NOT_EXIST;
+    Device *device = GET_HANDLE(hDevice).device;
+	
+	// Create the internal control info structure
+	ctrl = (Control *)malloc(sizeof(*ctrl));
+	if(ctrl) {
+		memset(ctrl, 0, sizeof(*ctrl));
+		ctrl->control.id		= last_uvc_ctrl_id++;
+		ctrl->uvc_unitid		= unit_id;
+		ctrl->uvc_selector		= selector;
+		ctrl->uvc_size			= 0;		// determined by init_xu_control()
+		ctrl->control.name		= name;
+		ctrl->control.type		= CC_TYPE_RAW;
+		ctrl->control.flags		= 0;		// determined by init_xu_control()
+
+		// Initialize the XU control (size, flags, min/max/def/res)
+		ret = init_xu_control(device, ctrl);
+		if(ret) goto done;
+		
+		ctrl->control.flags		|= CC_IS_CUSTOM;
+		
+		ret = read_xu_control(device, ctrl, value, hDevice);
+	}
+	
+done:
+	if(ret != C_SUCCESS && ctrl) {
+		SAFE_FREE(ctrl->control.name);
+		SAFE_FREE(ctrl);
+	}
+	return ret;	
 }
 
 #endif
