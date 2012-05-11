@@ -955,20 +955,18 @@ static CResult parse_dynctrl_file (const char *file_name, ParseContext *ctx)
 	}
 	assert(parser->valid);
 
+#if 0 // TODO implement
 	// Validate the XML file against the schema
 	if(!ctx->info || !(ctx->info->flags & CD_DONT_VALIDATE)) {
-		// TODO implement
 	}
 
 	// Free the document tree if there was an error
-	//if(ret) {
-	//	xmlFreeDoc(doc);
-	//	doc = NULL;
-	//}
+	if(ret) {
+		xmlFreeDoc(ctx->doc);
+		ctx->doc = NULL;
+	}
+#endif
 
-	// Return the document (or NULL if there was an error)
-	//*xml_doc = doc;
-	
 	// Clean up
 	xmlFreeParserCtxt(parser);
 
@@ -1372,9 +1370,9 @@ static CResult process_device (const xmlNode *node_device, ParseContext *ctx)
  * Process a @c devices node.
  */
 static CResult process_devices (const xmlNode *node_devices, ParseContext *ctx)
-{	
+{
 	assert(node_devices);
-	
+
 	// Process all <device> nodes
 	xmlNode *node_device = xml_get_first_child_by_name(node_devices, "device");
 	while(node_device) {
@@ -1524,8 +1522,6 @@ static CResult process_meta (const xmlNode *node_meta, ParseContext *ctx)
 static CResult process_dynctrl_doc (ParseContext *ctx)
 {
 	CResult ret = C_SUCCESS;
-	//if(!xml_doc)
-	//	return C_INVALID_ARG;
 
 	xmlNode *node_root = xmlDocGetRootElement(ctx->xml_doc);
 	assert(node_root);
