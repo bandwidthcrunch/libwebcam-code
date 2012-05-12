@@ -29,7 +29,8 @@
 
 
 #include <assert.h>
-
+#include <inttypes.h>
+#include <sys/types.h>
 
 /*
  * Features
@@ -92,6 +93,9 @@
 /*
  * Macros
  */
+#define HAS_VERBOSE()		(0)
+
+#define PRINT_PREFIX		"[libwebcam] "
 
 /// Returns the given handle structure
 #define GET_HANDLE(handle)		(handle_list.handles[(handle)])
@@ -241,7 +245,7 @@ extern HandleList handle_list;
 
 extern void print_error (char *format, ...);
 extern int open_v4l2_device(char *device_name);
-
+extern void set_last_error(CHandle hDevice, int error);
 
 
 /*

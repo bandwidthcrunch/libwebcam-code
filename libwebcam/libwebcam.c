@@ -83,7 +83,6 @@ static CResult get_mimetype_from_fourcc(char **mimetype, unsigned int fourcc);
 
 static CHandle create_handle(Device *device);
 static void close_handle(CHandle handle);
-static void set_last_error(CHandle hDevice, int error);
 
 
 /*
@@ -2811,7 +2810,7 @@ static void close_handle(CHandle hDevice)
 /**
  * Sets the last system error for the given handle.
  */
-static void set_last_error(CHandle hDevice, int error)
+void set_last_error(CHandle hDevice, int error)
 {
 	if(HANDLE_OPEN(hDevice))
 		GET_HANDLE(hDevice).last_system_error = error;

@@ -1966,7 +1966,8 @@ init_xu_control(Device *device, Control *control)
 		((info & (1 << 1)) ? CC_CAN_WRITE : 0);
 
 	// Query the min/max/def/res values
-	for(unsigned int i = 0; i < ARRAY_SIZE(values); i++) {
+	unsigned int i = 0;
+	for(i = 0; i < ARRAY_SIZE(values); i++) {
 		CControlValue *value = values[i].value;
 
 		// Allocate a buffer for the raw value
@@ -1989,7 +1990,7 @@ init_xu_control(Device *device, Control *control)
 
 done:
 	if(res != C_SUCCESS) {
-		for(unsigned int i = 0; i < ARRAY_SIZE(values); i++)
+		for(i = 0; i < ARRAY_SIZE(values); i++)
 			SAFE_FREE(values[i].value->raw.data);
 	}
 	close(v4l2_dev);
