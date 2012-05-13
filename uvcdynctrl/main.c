@@ -22,6 +22,8 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <inttypes.h>
+#include <sys/types.h>
 #include <string.h>
 #include <dirent.h>
 #include <fnmatch.h>
@@ -944,6 +946,27 @@ main (int argc, char **argv)
 			goto done;
 		}
 		printf("%d\n", value.value);
+	}
+	// Retrieve raw control value
+	else if(args_info.get_raw_given) {
+		//scan input
+		uint16_t unit_id;
+		uint8_t selector;
+		sscanf(args_info.get_raw_arg, "%d:%d", &unit_id, &selector);
+		CControlValue value;
+		value.type = CC_TYPE_RAW;
+		// Resolve the control Id
+		//uint16_t unit_id = 4;
+		//unsigned char selector=0x06;
+		// entity is only used for the generating a control name
+		//TODO: pass the guid through cmdline (optional)
+		unsigned char entity[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+		res = c_read_xu_control(handle, entity, unit_id, selector, &value);
+		if(res) {
+			print_handle_error(handle, "Unable to retrieve control value", res);
+			goto done;
+		}
+		if(value.raw.data) free(value.raw.data);
 	}
 	else if(args_info.set_given) {
 		CControlValue value;

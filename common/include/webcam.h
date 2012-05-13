@@ -27,7 +27,9 @@
 #ifndef C_WEBCAM_H
 #define C_WEBCAM_H
 
-
+#include <inttypes.h>
+#include <sys/types.h>
+#include "dynctrl-logitech.h"
 /*
  * Basic type definitions
  */
@@ -184,7 +186,13 @@ typedef enum _CControlId {
 	CC_LOGITECH_DISABLE_PROCESSING,
 	// Bits per pixel for raw (Bayer) mode
 	CC_LOGITECH_RAW_BITS_PER_PIXEL,
-
+	//
+	CC_LOGITECH_USB_VID,
+	//
+	CC_LOGITECH_USB_PID,
+	//
+	CC_LOGITECH_USB_BCD,
+	
 	/// Base for raw UVC controls
 	CC_UVC_XU_BASE	= 0xFFFF0000,
 	
@@ -749,6 +757,7 @@ extern CResult		c_unsubscribe_event (CHandle hDevice, CEventId event_id);
 #ifndef DISABLE_UVCVIDEO_DYNCTRL
 extern CResult		c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *info);
 extern CResult		c_add_control_mappings (CHandle handle, const char *file_name, CDynctrlInfo *info);
+extern CResult 		c_read_xu_control(CHandle hDevice, unsigned char entity[], uint16_t unit_id, unsigned char selector, CControlValue *value);
 #endif
 
 extern char			*c_get_error_text (CResult error);

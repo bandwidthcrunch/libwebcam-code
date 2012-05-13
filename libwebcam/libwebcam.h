@@ -97,6 +97,8 @@
 
 #define PRINT_PREFIX		"[libwebcam] "
 
+/// Free a pointer only if it is non-NULL and set it to NULL afterwards
+#define SAFE_FREE(p)		if(p) { free(p); (p) = NULL; }
 /// Returns the given handle structure
 #define GET_HANDLE(handle)		(handle_list.handles[(handle)])
 /// Returns true if the given handle is open (valid or invalid)
@@ -246,7 +248,8 @@ extern HandleList handle_list;
 extern void print_error (char *format, ...);
 extern int open_v4l2_device(char *device_name);
 extern void set_last_error(CHandle hDevice, int error);
-
+extern CResult read_xu_control(Device *device, Control *control, CControlValue *value, CHandle hDevice);
+extern CResult init_xu_control(Device *device, Control *control);
 
 /*
  * Helper functions

@@ -988,6 +988,67 @@ CResult c_get_control (CHandle hDevice, CControlId control_id, CControlValue *va
 	return ret;
 }
 
+
+CResult c_read_xu_control(CHandle hDevice, unsigned char entity[], uint16_t unit_id, unsigned char selector, CControlValue *value)
+{
+	
+	static unsigned int last_uvc_ctrl_id = CC_UVC_XU_BASE;
+	assert(last_uvc_ctrl_id < 0xFFFFFFFF);
+
+	CResult ret = C_SUCCESS;
+	Control *ctrl = NULL;
+
+	// Create the name for the control.
+	// We don't have a meaningful name here, so we make it up from the GUID and selector.
+	char *name = NULL;
+	int r = asprintf(&name, GUID_FORMAT"/%u", GUID_ARGS(entity), selector);
+	if(r <= 0) {
+		ret = C_NO_MEMORY;
+		goto done;
+	}
+	printf("checking control %s \n", name);
+	// Check the given handle and arguments
+    if(!initialized)
+        return C_INIT_ERROR;
+    if(!HANDLE_OPEN(hDevice))
+        return C_INVALID_HANDLE;
+    if(!HANDLE_VALID(hDevice))
+        return C_NOT_EXIST;
+    Device *device = GET_HANDLE(hDevice).device;
+    
+	// Create the internal control info structure
+	ctrl = (Control *)malloc(sizeof(*ctrl));
+	if(ctrl) {
+		memset(ctrl, 0, sizeof(*ctrl));
+		ctrl->control.id		= last_uvc_ctrl_id++;
+		ctrl->uvc_unitid		= unit_id;
+		ctrl->uvc_selector		= selector;
+		ctrl->uvc_size			= 0;		// determined by init_xu_control()
+		ctrl->control.name		= name;
+		ctrl->control.type		= CC_TYPE_RAW;
+		ctrl->control.flags		= 0;		// determined by init_xu_control()
+
+		// Initialize the XU control (size, flags, min/max/def/res)
+		ret = init_xu_control(device, ctrl);
+		value->raw.data = malloc(ctrl->uvc_size);
+		value->raw.size = ctrl->uvc_size;
+		
+		if(ret) goto done;
+		
+		ctrl->control.flags		|= CC_IS_CUSTOM;
+		
+		ret = read_xu_control(device, ctrl, value, hDevice);
+	}
+	
+done:
+	if(ret != C_SUCCESS && ctrl) {
+		SAFE_FREE(ctrl->control.name);
+		SAFE_FREE(ctrl);
+	}
+	return ret;	
+}
+
+
 /**
  * refreshes the values of all device controls.
  *
@@ -2180,6 +2241,15 @@ static CControlId get_control_id_from_v4l2 (int v4l2_id, Device *dev)
 #endif
 #ifdef V4L2_CID_RAW_BITS_PER_PIXEL
 		case V4L2_CID_RAW_BITS_PER_PIXEL:		return CC_LOGITECH_RAW_BITS_PER_PIXEL;
+#endif
+#ifdef V4L2_CID_USB_VID
+		case V4L2_CID_USB_VID					return CC_LOGITECH_USB_VID;
+#endif
+#ifdef V4L2_CID_USB_PID
+		case V4L2_CID_USB_PID					return CC_LOGITECH_USB_PID;
+#endif
+#ifdef V4L2_CID_USB_BCD
+		case V4L2_CID_USB_BCD					return CC_LOGITECH_USB_BCD;
 #endif
 	};
 

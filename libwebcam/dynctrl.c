@@ -57,8 +57,6 @@
 
 /// get the number of elemts from the array
 #define ARRAY_SIZE(a)		(sizeof(a) / sizeof((a)[0]))
-/// Free a pointer only if it is non-NULL and set it to NULL afterwards
-#define SAFE_FREE(p)		if(p) { free(p); (p) = NULL; }
 /// Zero out a variable
 #define ZERO_STRUCT(s)		memset(&(s), 0, sizeof(s))
 /// Macro to silence unused variable warnings
@@ -1913,7 +1911,6 @@ query_xu_control(int v4l2_dev, Control *control, uint8_t query, uint16_t size, v
  * GET_DEF, and GET_RES requests to the device and allocates the appropriate raw
  * buffers inside CControl.
  */
-static
 CResult
 init_xu_control(Device *device, Control *control)
 {
@@ -1937,22 +1934,25 @@ init_xu_control(Device *device, Control *control)
 	int v4l2_dev = open_v4l2_device(device->v4l2_name);
 	if(v4l2_dev < 0)
 		return C_INVALID_DEVICE;
-
+	printf("opened device\n");
 	// Query the control length
 	uint16_t length = 0;
 	ret = query_xu_control(v4l2_dev, control, UVC_GET_LEN,
 			sizeof(control->uvc_size), (void *)&length, "query size of");
 	control->uvc_size = le16toh(length);	// The value from the device is always little-endian
+	printf("control size =%d ret=%d\n", control->uvc_size,ret);
+
 	if(ret != 0) {
 		res = C_V4L2_ERROR;
 		goto done;
 	}
+	
 	if(control->uvc_size == 0) {
 		wc_log_error("XU control %s reported a size of 0", control->control.name);
 		res = C_INVALID_XU_CONTROL;
 		goto done;
 	}
-
+	
 	// Query the control information (i.e. flags such as supported requests)
 	uint8_t info = 0;
 	ret = query_xu_control(v4l2_dev, control, UVC_GET_INFO,
@@ -1964,12 +1964,14 @@ init_xu_control(Device *device, Control *control)
 	control->control.flags =
 		((info & (1 << 0)) ? CC_CAN_READ : 0) |
 		((info & (1 << 1)) ? CC_CAN_WRITE : 0);
+	printf("control flags =0x%x ret=%d\n", control->control.flags ,ret);
 
 	// Query the min/max/def/res values
 	unsigned int i = 0;
 	for(i = 0; i < ARRAY_SIZE(values); i++) {
 		CControlValue *value = values[i].value;
-
+		
+		printf("%s = ",values[i].action);
 		// Allocate a buffer for the raw value
 		value->type = control->control.type;
 		value->raw.data = calloc(1, control->uvc_size);
@@ -1982,6 +1984,18 @@ init_xu_control(Device *device, Control *control)
 		// Query the raw value
 		ret = query_xu_control(v4l2_dev, control, values[i].query,
 				control->uvc_size, value->raw.data, values[i].action);
+		char val[control->uvc_size];
+		strncpy(val, value->raw.data, control->uvc_size) ;
+	
+		int i=0;
+		for(i=0;i<control->uvc_size;i+=2)
+		{
+			uint16_t dat = val[i] + (val[i+1]<< 8);
+			dat = le16toh(dat);
+			printf("%.4x", dat);
+		}
+		printf(" ret=%d\n",ret);
+		
 		if(ret != 0) {
 			res = C_V4L2_ERROR;
 			goto done;
@@ -2094,17 +2108,39 @@ read_xu_control(Device *device, Control *control, CControlValue *value, CHandle 
 	CResult res = C_SUCCESS;
 
 	if(device == NULL || control == NULL || value == NULL || control->control.type != CC_TYPE_RAW)
+	{
+		printf("invalid arg\n");
 		return C_INVALID_ARG;
+	}
 	if(value->raw.data == NULL || value->raw.size < control->uvc_size)
+	{
+		printf("buffer to small\n");
 		return C_BUFFER_TOO_SMALL;
+	}
 	if(value->type != CC_TYPE_RAW)
+	{
+		printf("not a raw value type\n");
 		return C_INVALID_ARG;
-
+	}
 	int v4l2_dev = open_v4l2_device(device->v4l2_name);
+	
 	if(v4l2_dev < 0)
 		return C_INVALID_DEVICE;
 
 	int ret = query_xu_control(v4l2_dev, control, UVC_GET_CUR, control->uvc_size, value->raw.data, NULL);
+	
+	char val[control->uvc_size];
+	strncpy(val, value->raw.data, control->uvc_size) ;
+	
+	int i=0;
+	printf("current value is = ");
+	for(i=0;i<control->uvc_size;i+=2)
+	{
+		uint16_t dat = val[i] + (val[i+1]<< 8);
+		dat = le16toh(dat);
+		printf("%.4x", dat);
+	}
+	printf(" ret=%d\n",ret);
 	if(ret != 0) {
 		set_last_error(hDevice, ret);
 		res = C_V4L2_ERROR;
@@ -2341,61 +2377,6 @@ CResult c_add_control_mappings (CHandle handle, const char *file_name,
 				CDynctrlInfo *info)
 {
 	return C_NOT_IMPLEMENTED;
-}
-
-CResult c_read_xu_control(CHandle hDevice, unsigned char entity[], uint16_t unit_id, unsigned char selector, CControlValue *value)
-{
-	
-	static unsigned int last_uvc_ctrl_id = CC_UVC_XU_BASE;
-	assert(last_uvc_ctrl_id < 0xFFFFFFFF);
-
-	CResult ret = C_SUCCESS;
-	Control *ctrl = NULL;
-
-	// Create the name for the control.
-	// We don't have a meaningful name here, so we make it up from the GUID and selector.
-	char *name = NULL;
-	int r = asprintf(&name, GUID_FORMAT"/%u", GUID_ARGS(entity), selector);
-	if(r <= 0) {
-		ret = C_NO_MEMORY;
-		goto done;
-	}
-	// Check the given handle and arguments
-    if(!initialized)
-        return C_INIT_ERROR;
-    if(!HANDLE_OPEN(hDevice))
-        return C_INVALID_HANDLE;
-    if(!HANDLE_VALID(hDevice))
-        return C_NOT_EXIST;
-    Device *device = GET_HANDLE(hDevice).device;
-	
-	// Create the internal control info structure
-	ctrl = (Control *)malloc(sizeof(*ctrl));
-	if(ctrl) {
-		memset(ctrl, 0, sizeof(*ctrl));
-		ctrl->control.id		= last_uvc_ctrl_id++;
-		ctrl->uvc_unitid		= unit_id;
-		ctrl->uvc_selector		= selector;
-		ctrl->uvc_size			= 0;		// determined by init_xu_control()
-		ctrl->control.name		= name;
-		ctrl->control.type		= CC_TYPE_RAW;
-		ctrl->control.flags		= 0;		// determined by init_xu_control()
-
-		// Initialize the XU control (size, flags, min/max/def/res)
-		ret = init_xu_control(device, ctrl);
-		if(ret) goto done;
-		
-		ctrl->control.flags		|= CC_IS_CUSTOM;
-		
-		ret = read_xu_control(device, ctrl, value, hDevice);
-	}
-	
-done:
-	if(ret != C_SUCCESS && ctrl) {
-		SAFE_FREE(ctrl->control.name);
-		SAFE_FREE(ctrl);
-	}
-	return ret;	
 }
 
 #endif
