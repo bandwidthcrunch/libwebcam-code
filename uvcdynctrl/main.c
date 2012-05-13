@@ -952,7 +952,7 @@ main (int argc, char **argv)
 		//scan input
 		uint16_t unit_id;
 		uint8_t selector;
-		sscanf(args_info.get_raw_arg, "%d:%d", &unit_id, &selector);
+		sscanf(args_info.get_raw_arg, "%hu:%c", &unit_id, &selector);
 		CControlValue value;
 		value.type = CC_TYPE_RAW;
 		// Resolve the control Id
