@@ -1484,6 +1484,7 @@
 	<!-- V4L2 mappings for the UVC controls defined above -->
 	<mappings>
 		<!-- V4L2 mappings for the internal UVC controls defined above -->
+		<!--
 		<mapping>
 			<name>USB VID</name>
 			<uvc>
@@ -1523,7 +1524,7 @@
 				<v4l2_type>V4L2_CTRL_TYPE_INTEGER</v4l2_type>
 			</v4l2>
 		</mapping>
-		<!--
+		
 		<mapping>
 			<name>USB Information</name>
 			<uvc>
