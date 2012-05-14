@@ -249,7 +249,7 @@ extern void print_error (char *format, ...);
 extern int open_v4l2_device(char *device_name);
 extern void set_last_error(CHandle hDevice, int error);
 extern CResult read_xu_control(Device *device, Control *control, CControlValue *value, CHandle hDevice);
-extern CResult write_xu_control(Device *device, Control *control, CControlValue *value, CHandle hDevice);
+extern CResult write_xu_control(Device *device, Control *control, const CControlValue *value, CHandle hDevice);
 extern CResult init_xu_control(Device *device, Control *control);
 
 /*

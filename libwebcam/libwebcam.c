@@ -1095,7 +1095,7 @@ CResult c_write_xu_control(CHandle hDevice, unsigned char entity[], uint16_t uni
 		if (value->raw.size <  ctrl->uvc_size)
 		{
 			ret = C_INVALID_ARG;
-			goto done
+			goto done;
 		}
 		
 		ctrl->control.flags		|= CC_IS_CUSTOM;

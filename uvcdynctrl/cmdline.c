@@ -39,7 +39,7 @@ const char *gengetopt_args_info_help[] = {
   "  -g, --get=control        Retrieve the current control value",
   "  -G, --get_raw=unit_id:selector        Retrieve the current raw control value",
   "  -s, --set=control        Set a new control value\n                             (For negative values: -s 'My Control' -- -42)",
-  "  -S, --set_raw=unit_id:selector:value(0x...) Set the current raw control value",
+  "  -S, --set_raw=unit_id:selector:value  Set the current raw control value\n                             (value is a hex string of control size)",
   "  -f, --formats            List available frame formats",
   "  -W, --save=filename      Save device controls state to a file",
   "  -L, --load=filename      Load device controls state from a file",

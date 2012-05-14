@@ -796,6 +796,7 @@ static
 uint16_t convert_short(char short_str[5], int base)
 {
 	uint32_t val = 0;
+	// a short can be 5 digits long in base 10 (65535) but it's always four in hex
 	uint16_t mult[5] = {1, base, base*base, base*base*base, base*base*base*base};
 	int loop_i = 0;
 	int i = 0;
@@ -817,20 +818,24 @@ uint16_t convert_short(char short_str[5], int base)
 	}
 	else //base 10
 	{
-		for (i=4; i >= 0; i--) {
-			if (isdigit(short_str[i])) {
-				val += (short_str[i] - '0') * mult[loop_i];
-			}
-			else
-				break;
-		
-			loop_i++;
-		}
+		//for (i=4; i >= 0; i--) {
+		//	if (isdigit(short_str[i])) {
+		//		val += (short_str[i] - '0') * mult[loop_i];
+		//	}
+		//	else
+		//		break;
+		//
+		//	loop_i++;
+		//}
+		printf("base value not supported (only base 16)\n");
 	}
 	
 	//clip short
 	if(val > 0xffff)
+	{
+		printf("value %.8x to big clipping to 0xffff\n", val);
 		val = 0xffff;
+	}
 	
 	return (uint16_t) val;
 }
@@ -844,6 +849,7 @@ int convert_raw_string(void *raw_data, int max_size, char raw_str[])
 	int start_i = 0;
 	int data_index = 0;
 	uint16_t *data = (uint16_t *) raw_data;
+	//max size is in bytes, max_ind refers to uint16_t (2 bytes)
 	int max_ind = max_size/2; 
 	//convert raw_data string
 	int length = strlen(raw_str);
@@ -854,10 +860,11 @@ int convert_raw_string(void *raw_data, int max_size, char raw_str[])
 		start_i = 2;
 		max_count = 4; // 4 digits in base 16
 	}
-	else {
-		base = 10;
+	else { //we assume value data is in hex format
+		printf("Assuming hex value (base 16)\n");
+		base = 16;
 		start_i = 0;
-		max_count = 5; // a short can be 5 digits long in base 10 (65535)
+		max_count = 4; // a short can be 5 digits long in base 10 (65535)
 	}
 	
 	printf("... using base %d\n", base);
@@ -882,6 +889,10 @@ int convert_raw_string(void *raw_data, int max_size, char raw_str[])
 			//get current value
 			count = 0;
 			val = 0;
+			if(data_index > max_ind) {
+				printf("raw data buffer full\n");
+				break;
+			}
 			short_str[0]='0';
 			short_str[1]='0';
 			short_str[2]='0';
@@ -901,6 +912,7 @@ int convert_raw_string(void *raw_data, int max_size, char raw_str[])
 		data_index++;
 	}
 	
+	// size in bytes
 	return (data_index * 2);
 }
 
@@ -1078,11 +1090,11 @@ main (int argc, char **argv)
 		}
 		
 		//print the raw value
-		char val[value->raw.size];
-		strncpy(val, value->raw.data, value->raw.size) ;
+		char val[value.raw.size];
+		strncpy(val, value.raw.data, value.raw.size) ;
 		int i=0;
 		printf("current value is = ");
-		for(i=0;i<value->raw.size;i+=2)
+		for(i=0;i<value.raw.size;i+=2)
 		{
 			uint16_t dat = val[i] + (val[i+1]<< 8);
 			dat = le16toh(dat);
@@ -1127,18 +1139,18 @@ main (int argc, char **argv)
 		//scan input
 		uint16_t unit_id;
 		unsigned char selector;
-		unsigned char raw_str[80];
+		char raw_str[80];
 		sscanf(args_info.get_raw_arg, "%hu:%hhu:%s", &unit_id, &selector, raw_str);
 
 		CControlValue value;
 		value.type = CC_TYPE_RAW;
 		
-		value->raw.size = 48;
-		value->raw.data = malloc(value->raw.size);
+		value.raw.size = 48;
+		value.raw.data = malloc(value.raw.size);
 		
-		int size = convert_raw_string(value->raw.data, value->raw.size, raw_str);
+		int size = convert_raw_string(value.raw.data, value.raw.size, raw_str);
 		
-		value->raw.size = size;
+		value.raw.size = size;
 		// the entity is only used for the generating a control name
 		//TODO: pass the guid through cmdline (optional)
 		unsigned char entity[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
@@ -1149,11 +1161,11 @@ main (int argc, char **argv)
 		}
 		
 		//print the raw value
-		char val[value->raw.size];
-		strncpy(val, value->raw.data, value->raw.size) ;
+		char val[value.raw.size];
+		strncpy(val, value.raw.data, value.raw.size) ;
 		int i=0;
 		printf("current value is = ");
-		for(i=0;i<value->raw.size;i+=2)
+		for(i=0;i<value.raw.size;i+=2)
 		{
 			uint16_t dat = val[i] + (val[i+1]<< 8);
 			dat = le16toh(dat);
