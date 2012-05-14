@@ -50,11 +50,14 @@ struct gengetopt_args_info
   char * get_arg;	/**< @brief Retrieve the current control value.  */
   char * get_orig;	/**< @brief Retrieve the current control value original value given at command line.  */
   const char *get_help; /**< @brief Retrieve the current control value help description.  */
-  char * get_raw_arg;	/**< @brief Retrieve the current control value.  */
-  char * get_raw_orig;	/**< @brief Retrieve the current control value original value given at command line.  */
-  const char *get_raw_help; /**< @brief Retrieve the current control value help description.  */
+  char * get_raw_arg;	/**< @brief Retrieve the current raw control value.  */
+  char * get_raw_orig;	/**< @brief Retrieve the current raw control value- original value given at command line.  */
+  const char *get_raw_help; /**< @brief Retrieve the current raw control value- help description.  */
   char * set_arg;	/**< @brief Set a new control value\n(For negative values: -s 'My Control' -- -42).  */
   char * set_orig;	/**< @brief Set a new control value\n(For negative values: -s 'My Control' -- -42) original value given at command line.  */
+  char * set_raw_arg;	/**< @brief Set the current raw control value.  */
+  char * set_raw_orig;	/**< @brief Set the current raw control value- original value given at command line.  */
+  const char *set_raw_help; /**< @brief Set the current raw control value- help description.  */
   const char *set_help; /**< @brief Set a new control value\n(For negative values: -s 'My Control' -- -42) help description.  */
   const char *formats_help; /**< @brief List available frame formats help description.  */
   char * save_ctrl_arg;	 /**< @brief save controls to a file.  */
@@ -73,8 +76,9 @@ struct gengetopt_args_info
   unsigned int device_given ;	/**< @brief Whether device was given.  */
   unsigned int clist_given ;	/**< @brief Whether clist was given.  */
   unsigned int get_given ;	/**< @brief Whether get was given.  */
-  unsigned int get_raw_given ;	/**< @brief Whether get was given.  */
+  unsigned int get_raw_given ;	/**< @brief Whether get_raw was given.  */
   unsigned int set_given ;	/**< @brief Whether set was given.  */
+  unsigned int set_raw_given ;	/**< @brief Whether set_raw was given.  */
   unsigned int formats_given ;	/**< @brief Whether formats was given.  */
   unsigned int save_ctrl_given; /**< @brief Whether save ctrl was given.  */
   unsigned int load_ctrl_given; /**< @brief Whether load ctrl was given.  */

@@ -2119,7 +2119,7 @@ read_xu_control(Device *device, Control *control, CControlValue *value, CHandle 
 	}
 	if(value->type != CC_TYPE_RAW)
 	{
-		printf("not a raw value type\n");
+		printf("value not of raw type\n");
 		return C_INVALID_ARG;
 	}
 	int v4l2_dev = open_v4l2_device(device->v4l2_name);
@@ -2129,18 +2129,6 @@ read_xu_control(Device *device, Control *control, CControlValue *value, CHandle 
 
 	int ret = query_xu_control(v4l2_dev, control, UVC_GET_CUR, control->uvc_size, value->raw.data, NULL);
 	
-	char val[control->uvc_size];
-	strncpy(val, value->raw.data, control->uvc_size) ;
-	
-	int i=0;
-	printf("current value is = ");
-	for(i=0;i<control->uvc_size;i+=2)
-	{
-		uint16_t dat = val[i] + (val[i+1]<< 8);
-		dat = le16toh(dat);
-		printf("%.4x", dat);
-	}
-	printf(" ret=%d\n",ret);
 	if(ret != 0) {
 		set_last_error(hDevice, ret);
 		res = C_V4L2_ERROR;
@@ -2184,7 +2172,7 @@ write_xu_control(Device *device, Control *control, const CControlValue *value, C
 	if(device == NULL || control == NULL || value == NULL || control->control.type != CC_TYPE_RAW)
 		return C_INVALID_ARG;
 	if(value->raw.size != control->uvc_size)
-		return C_INVALID_ARG;
+		return C_INVALID_ARG;	
 	if(value->type != CC_TYPE_RAW)
 		return C_INVALID_ARG;
 

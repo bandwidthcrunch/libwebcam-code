@@ -758,6 +758,7 @@ extern CResult		c_unsubscribe_event (CHandle hDevice, CEventId event_id);
 extern CResult		c_add_control_mappings_from_file (const char *file_name, CDynctrlInfo *info);
 extern CResult		c_add_control_mappings (CHandle handle, const char *file_name, CDynctrlInfo *info);
 extern CResult 		c_read_xu_control(CHandle hDevice, unsigned char entity[], uint16_t unit_id, unsigned char selector, CControlValue *value);
+extern CResult 		c_write_xu_control(CHandle hDevice, unsigned char entity[], uint16_t unit_id, unsigned char selector, CControlValue *value);
 #endif
 
 extern char			*c_get_error_text (CResult error);

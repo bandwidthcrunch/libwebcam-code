@@ -31,7 +31,6 @@
 #include <assert.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -790,6 +789,120 @@ add_control_mappings(CHandle hDevice, const char *filename)
 	return res;
 }
 
+/*
+ * Convert char array to short
+ */
+static 
+uint16_t convert_short(char short_str[5], int base)
+{
+	uint32_t val = 0;
+	uint16_t mult[5] = {1, base, base*base, base*base*base, base*base*base*base};
+	int loop_i = 0;
+	int i = 0;
+	
+	if (base == 16)
+	{
+		for (i=3; i >= 0; i--) {
+			if (isdigit(short_str[i])) {
+				val += (short_str[i] - '0') * mult[loop_i];
+			}
+			else if (isalpha(short_str[i]) && (toupper(short_str[i]) >= 'A') && (toupper(short_str[i]) <= 'F')) {
+				val += (10 + (toupper(short_str[i]) - 'A')) * mult[loop_i];
+			}
+			else
+				break;
+		
+			loop_i++;
+		}
+	}
+	else //base 10
+	{
+		for (i=4; i >= 0; i--) {
+			if (isdigit(short_str[i])) {
+				val += (short_str[i] - '0') * mult[loop_i];
+			}
+			else
+				break;
+		
+			loop_i++;
+		}
+	}
+	
+	//clip short
+	if(val > 0xffff)
+		val = 0xffff;
+	
+	return (uint16_t) val;
+}
+
+static 
+int convert_raw_string(void *raw_data, int max_size, char raw_str[])
+{
+	int i = 0;
+	//uint16_t temp = 0;
+	int base = 16;
+	int start_i = 0;
+	int data_index = 0;
+	uint16_t *data = (uint16_t *) raw_data;
+	int max_ind = max_size/2; 
+	//convert raw_data string
+	int length = strlen(raw_str);
+	int max_count = 4;
+	
+	if((length > 2) && raw_str[0] == '0' && isalpha(raw_str[1]) && (toupper(raw_str[1]) == 'X')) { //hex
+		base = 16;
+		start_i = 2;
+		max_count = 4; // 4 digits in base 16
+	}
+	else {
+		base = 10;
+		start_i = 0;
+		max_count = 5; // a short can be 5 digits long in base 10 (65535)
+	}
+	
+	printf("... using base %d\n", base);
+	
+	char short_str[5];
+	int count = 0;
+	uint16_t val = 0;
+	
+	//loop shorts
+	
+	for (i=start_i; i < length; i++) {
+	
+		
+		if(count < max_count)
+		{
+			short_str[count] = raw_str[i];
+		}
+		else {
+			val = convert_short(short_str, base);
+			data[data_index] = htole16(val);
+			data_index++;
+			//get current value
+			count = 0;
+			val = 0;
+			short_str[0]='0';
+			short_str[1]='0';
+			short_str[2]='0';
+			short_str[3]='0';
+			short_str[4]='0';
+			short_str[count] = raw_str[i];
+		}
+		count++;
+	}
+	
+	if(count > 0) {
+		char tmp[5] = {0,0,0,0,0};
+		for(i=0; i<count; i++)
+			tmp[max_count-(count-i)] = short_str[i];
+		val = convert_short(tmp, base);
+		data[data_index] = htole16(val);
+		data_index++;
+	}
+	
+	return (data_index * 2);
+}
 
 int
 main (int argc, char **argv)
@@ -951,14 +1064,11 @@ main (int argc, char **argv)
 	else if(args_info.get_raw_given) {
 		//scan input
 		uint16_t unit_id;
-		uint16_t selector;
-		sscanf(args_info.get_raw_arg, "%hu:%hu", &unit_id, &selector);
+		unsigned char selector;
+		sscanf(args_info.get_raw_arg, "%hu:%hhu", &unit_id, &selector);
 		CControlValue value;
 		value.type = CC_TYPE_RAW;
-		// Resolve the control Id
-		//uint16_t unit_id = 4;
-		//unsigned char selector=0x06;
-		// entity is only used for the generating a control name
+		// the entity is only used for the generating a control name
 		//TODO: pass the guid through cmdline (optional)
 		unsigned char entity[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 		res = c_read_xu_control(handle, entity, unit_id, selector, &value);
@@ -966,6 +1076,20 @@ main (int argc, char **argv)
 			print_handle_error(handle, "Unable to retrieve control value", res);
 			goto done;
 		}
+		
+		//print the raw value
+		char val[value->raw.size];
+		strncpy(val, value->raw.data, value->raw.size) ;
+		int i=0;
+		printf("current value is = ");
+		for(i=0;i<value->raw.size;i+=2)
+		{
+			uint16_t dat = val[i] + (val[i+1]<< 8);
+			dat = le16toh(dat);
+			printf("%.4x", dat);
+		}
+		printf("\n");
+		//free the raw value alocation
 		if(value.raw.data) free(value.raw.data);
 	}
 	else if(args_info.set_given) {
@@ -997,6 +1121,47 @@ main (int argc, char **argv)
 			print_handle_error(handle, "Unable to set new control value", res);
 			goto done;
 		}
+	}
+	// Set the raw control value
+	else if(args_info.set_raw_given) {
+		//scan input
+		uint16_t unit_id;
+		unsigned char selector;
+		unsigned char raw_str[80];
+		sscanf(args_info.get_raw_arg, "%hu:%hhu:%s", &unit_id, &selector, raw_str);
+
+		CControlValue value;
+		value.type = CC_TYPE_RAW;
+		
+		value->raw.size = 48;
+		value->raw.data = malloc(value->raw.size);
+		
+		int size = convert_raw_string(value->raw.data, value->raw.size, raw_str);
+		
+		value->raw.size = size;
+		// the entity is only used for the generating a control name
+		//TODO: pass the guid through cmdline (optional)
+		unsigned char entity[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+		res = c_write_xu_control(handle, entity, unit_id, selector, &value);
+		if(res) {
+			print_handle_error(handle, "Unable to set the control value", res);
+			goto done;
+		}
+		
+		//print the raw value
+		char val[value->raw.size];
+		strncpy(val, value->raw.data, value->raw.size) ;
+		int i=0;
+		printf("current value is = ");
+		for(i=0;i<value->raw.size;i+=2)
+		{
+			uint16_t dat = val[i] + (val[i+1]<< 8);
+			dat = le16toh(dat);
+			printf("%.4x", dat);
+		}
+		printf("\n");
+		//free the raw value alocation
+		if(value.raw.data) free(value.raw.data);
 	}
 	else if(args_info.save_ctrl_given) {
 		res = save_controls( handle, args_info.save_ctrl_arg);

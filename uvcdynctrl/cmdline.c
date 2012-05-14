@@ -37,10 +37,11 @@ const char *gengetopt_args_info_help[] = {
   "  -d, --device=devicename  Specify the device to use  (default=`video0')",
   "  -c, --clist              List available controls",
   "  -g, --get=control        Retrieve the current control value",
-  "  -G, --get_raw=unit_id:selector  Retrieve the current raw control value",
+  "  -G, --get_raw=unit_id:selector        Retrieve the current raw control value",
   "  -s, --set=control        Set a new control value\n                             (For negative values: -s 'My Control' -- -42)",
+  "  -S, --set_raw=unit_id:selector:value(0x...) Set the current raw control value",
   "  -f, --formats            List available frame formats",
-  "  -S, --save=filename      Save device controls state to a file",
+  "  -W, --save=filename      Save device controls state to a file",
   "  -L, --load=filename      Load device controls state from a file",
     0
 };
@@ -77,6 +78,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->get_given = 0 ;
   args_info->get_raw_given = 0 ;
   args_info->set_given = 0 ;
+  args_info->set_raw_given = 0 ;
   args_info->formats_given = 0 ;
   args_info->save_ctrl_given = 0 ;
   args_info->load_ctrl_given = 0 ;
@@ -98,6 +100,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->get_raw_orig = NULL ;
   args_info->set_arg = NULL;
   args_info->set_orig = NULL;
+  args_info->set_raw_arg = NULL ;
+  args_info->set_raw_orig = NULL ;
   args_info->save_ctrl_arg = NULL;
   args_info->save_ctrl_orig = NULL;
   args_info->load_ctrl_arg = NULL;
@@ -118,11 +122,12 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->device_help = gengetopt_args_info_help[6] ;
   args_info->clist_help = gengetopt_args_info_help[7] ;
   args_info->get_help = gengetopt_args_info_help[8] ;
-   args_info->get_raw_help = gengetopt_args_info_help[9] ;
+  args_info->get_raw_help = gengetopt_args_info_help[9] ;
   args_info->set_help = gengetopt_args_info_help[10] ;
-  args_info->formats_help = gengetopt_args_info_help[11] ;
-  args_info->save_ctrl_help = gengetopt_args_info_help[12] ;
-  args_info->load_ctrl_help = gengetopt_args_info_help[13] ;
+  args_info->set_raw_help = gengetopt_args_info_help[11] ;
+  args_info->formats_help = gengetopt_args_info_help[12] ;
+  args_info->save_ctrl_help = gengetopt_args_info_help[13] ;
+  args_info->load_ctrl_help = gengetopt_args_info_help[14] ;
 }
 
 void
@@ -215,6 +220,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->get_raw_orig));
   free_string_field (&(args_info->set_arg));
   free_string_field (&(args_info->set_orig));
+  free_string_field (&(args_info->set_raw_arg));
+  free_string_field (&(args_info->set_raw_orig));
   free_string_field (&(args_info->save_ctrl_arg));
   free_string_field (&(args_info->save_ctrl_orig));
   free_string_field (&(args_info->load_ctrl_arg));
@@ -274,6 +281,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "get_raw", args_info->get_raw_orig, 0);
   if (args_info->set_given)
     write_into_file(outfile, "set", args_info->set_orig, 0);
+  if (args_info->set_raw_given)
+    write_into_file(outfile, "set_raw", args_info->set_raw_orig, 0);
   if (args_info->formats_given)
     write_into_file(outfile, "formats", 0, 0 );
   if (args_info->save_ctrl_given)
@@ -525,13 +534,14 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "get",	1, NULL, 'g' },
         { "get_raw",1, NULL, 'G' },
         { "set",	1, NULL, 's' },
+		{ "set_raw",1, NULL, 'S' },
         { "formats",0, NULL, 'f' },
-        { "save",   1, NULL, 'S' },
+        { "save",   1, NULL, 'W' },
         { "load",   1, NULL, 'L' },
         { NULL,	    0, NULL, 0 }
       };
 
-      c = getopt_long (argc, argv, "hVli:a:vd:cg:G:s:fS:L:", long_options, &option_index);
+      c = getopt_long (argc, argv, "hVli:a:vd:cg:G:s:S:fW:L:", long_options, &option_index);
 
       if (c == -1) break;	/* Exit from `while (1)' loop.  */
 
@@ -629,14 +639,14 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             goto failure;
         
           break;
-         case 'G':	/* Retrieve the current raw control value.  */
+        case 'G':	/* Retrieve the current raw control value.  */
         
         
           if (update_arg( (void *)&(args_info->get_raw_arg), 
                &(args_info->get_raw_orig), &(args_info->get_raw_given),
               &(local_args_info.get_raw_given), optarg, 0, 0, ARG_STRING,
               check_ambiguity, override, 0, 0,
-              "get", 'g',
+              "get_raw", 'G',
               additional_error))
             goto failure;
         
@@ -653,6 +663,18 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             goto failure;
         
           break;
+		case 'S':	/* Save the current raw control value.  */
+        
+        
+          if (update_arg( (void *)&(args_info->set_raw_arg), 
+               &(args_info->set_raw_orig), &(args_info->set_raw_given),
+              &(local_args_info.set_raw_given), optarg, 0, 0, ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "set_raw", 'S',
+              additional_error))
+            goto failure;
+        
+          break;
         case 'f':	/* List available frame formats.  */
         
         
@@ -665,14 +687,14 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             goto failure;
         
           break;
-	    case 'S':	/* save controls to a file.  */
+	    case 'W':	/* save controls to a file.  */
         
         
           if (update_arg( (void *)&(args_info->save_ctrl_arg), 
                &(args_info->save_ctrl_orig), &(args_info->save_ctrl_given),
               &(local_args_info.save_ctrl_given), optarg, 0, 0, ARG_STRING,
               check_ambiguity, override, 0, 0,
-              "save", 'S',
+              "save", 'W',
               additional_error))
             goto failure;
         

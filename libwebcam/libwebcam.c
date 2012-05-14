@@ -1048,6 +1048,68 @@ done:
 	return ret;	
 }
 
+CResult c_write_xu_control(CHandle hDevice, unsigned char entity[], uint16_t unit_id, unsigned char selector, CControlValue *value)
+{
+	
+	static unsigned int last_uvc_ctrl_id = CC_UVC_XU_BASE;
+	assert(last_uvc_ctrl_id < 0xFFFFFFFF);
+
+	CResult ret = C_SUCCESS;
+	Control *ctrl = NULL;
+
+	// Create the name for the control.
+	// We don't have a meaningful name here, so we make it up from the GUID and selector.
+	char *name = NULL;
+	int r = asprintf(&name, GUID_FORMAT"/%u", GUID_ARGS(entity), selector);
+	if(r <= 0) {
+		ret = C_NO_MEMORY;
+		goto done;
+	}
+	printf("checking control %s \n", name);
+	// Check the given handle and arguments
+    if(!initialized)
+        return C_INIT_ERROR;
+    if(!HANDLE_OPEN(hDevice))
+        return C_INVALID_HANDLE;
+    if(!HANDLE_VALID(hDevice))
+        return C_NOT_EXIST;
+    Device *device = GET_HANDLE(hDevice).device;
+    
+	// Create the internal control info structure
+	ctrl = (Control *)malloc(sizeof(*ctrl));
+	if(ctrl) {
+		memset(ctrl, 0, sizeof(*ctrl));
+		ctrl->control.id		= last_uvc_ctrl_id++;
+		ctrl->uvc_unitid		= unit_id;
+		ctrl->uvc_selector		= selector;
+		ctrl->uvc_size			= 0;		// determined by init_xu_control()
+		ctrl->control.name		= name;
+		ctrl->control.type		= CC_TYPE_RAW;
+		ctrl->control.flags		= 0;		// determined by init_xu_control()
+
+		// Initialize the XU control (size, flags, min/max/def/res)
+		ret = init_xu_control(device, ctrl);
+		
+		if(ret) goto done;
+		
+		if (value->raw.size <  ctrl->uvc_size)
+		{
+			ret = C_INVALID_ARG;
+			goto done
+		}
+		
+		ctrl->control.flags		|= CC_IS_CUSTOM;
+		
+		ret = write_xu_control(device, ctrl, value, hDevice);
+	}
+	
+done:
+	if(ret != C_SUCCESS && ctrl) {
+		SAFE_FREE(ctrl->control.name);
+		SAFE_FREE(ctrl);
+	}
+	return ret;	
+}
 
 /**
  * refreshes the values of all device controls.
