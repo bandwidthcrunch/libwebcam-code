@@ -43,7 +43,7 @@ const char *gengetopt_args_info_help[] = {
   "  -S, --set_raw=unit_id:selector        Set the current raw control value\n"
   "                            (value is a hex string of control size,\n"
   "                             default is little endian- '(BE)' prefix to change:\n"
-  "                             -S 13:6 0x03020001 or -S 13:6 (BE)0x01000203 )\n",
+  "                             -S 13:1 0x01100c or -S 13:1 '(BE)0x0c1001' )\n",
   "  -f, --formats            List available frame formats",
   "  -W, --save=filename      Save device controls state to a file",
   "  -L, --load=filename      Load device controls state from a file",
