@@ -963,11 +963,14 @@ main (int argc, char **argv)
 		}
 		
 		//print the raw value
-		printf("current value is = ");
 		uint8_t * val = value.raw.data;
 		int i=0;
-		for(i=0;i<value.raw.size;i++)
-		{
+		printf("query current value of: (LE)0x");
+		for(i=0; i<value.raw.size; i++)	{
+			printf("%.2x", val[i]);
+		}
+		printf("  (BE)0x");
+		for(i=value.raw.size-1; i >=0; i--) {
 			printf("%.2x", val[i]);
 		}
 		printf("\n");
@@ -1033,11 +1036,11 @@ main (int argc, char **argv)
 		//print the raw value le and be format
 		uint8_t * val = value.raw.data;
 		int i=0;
-		printf("set value: (LE)0x");
+		printf("set value of          : (LE)0x");
 		for(i=0; i<value.raw.size; i++)	{
 			printf("%.2x", val[i]);
 		}
-		printf(" (BE)0x");
+		printf("  (BE)0x");
 		for(i=value.raw.size-1; i >=0; i--) {
 			printf("%.2x", val[i]);
 		}

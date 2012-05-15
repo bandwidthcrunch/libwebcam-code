@@ -121,12 +121,6 @@ int convert_raw_string(void *raw_data, int max_size, char raw_str[]) {
 		base = 16;
 	}
 	
-	printf("... using base %d ", base);
-	if(endian > 0)
-		printf(" - big endian\n");
-	else
-		printf(" - little endian\n");
-	
 	char str[2];
 	
 	for(i=start_i; i<length; i++) {
@@ -143,7 +137,6 @@ int convert_raw_string(void *raw_data, int max_size, char raw_str[]) {
 		}
 		
 		data[data_index] = convert_byte(str, base);
-		printf("%.2x\n",data[data_index]);
 		data_index++;
 	}
 	

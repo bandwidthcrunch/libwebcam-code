@@ -1006,7 +1006,7 @@ CResult c_read_xu_control(CHandle hDevice, unsigned char entity[], uint16_t unit
 		ret = C_NO_MEMORY;
 		goto done;
 	}
-	printf("checking control %s \n", name);
+	
 	// Check the given handle and arguments
     if(!initialized)
         return C_INIT_ERROR;
@@ -1065,7 +1065,7 @@ CResult c_write_xu_control(CHandle hDevice, unsigned char entity[], uint16_t uni
 		ret = C_NO_MEMORY;
 		goto done;
 	}
-	printf("checking control %s \n", name);
+	
 	// Check the given handle and arguments
     if(!initialized)
         return C_INIT_ERROR;

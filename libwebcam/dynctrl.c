@@ -1925,7 +1925,7 @@ init_xu_control(Device *device, Control *control)
 		{ &control->control.min,	UVC_GET_MIN,	"query minimum value of" },
 		{ &control->control.max,	UVC_GET_MAX,	"query maximum value of" },
 		{ &control->control.def,	UVC_GET_DEF,	"query default value of" },
-		{ &control->control.step,	UVC_GET_RES,	"query step size of" },
+		{ &control->control.step,	UVC_GET_RES,	"query step size of    " },
 	};
 
 	if(device == NULL || control == NULL || control->control.type != CC_TYPE_RAW)
@@ -1934,13 +1934,13 @@ init_xu_control(Device *device, Control *control)
 	int v4l2_dev = open_v4l2_device(device->v4l2_name);
 	if(v4l2_dev < 0)
 		return C_INVALID_DEVICE;
-	printf("opened device\n");
+	
 	// Query the control length
 	uint16_t length = 0;
 	ret = query_xu_control(v4l2_dev, control, UVC_GET_LEN,
 			sizeof(control->uvc_size), (void *)&length, "query size of");
 	control->uvc_size = le16toh(length);	// The value from the device is always little-endian
-	printf("control size =%d ret=%d\n", control->uvc_size,ret);
+	printf("query control size of : %d\n", control->uvc_size);
 
 	if(ret != 0) {
 		res = C_V4L2_ERROR;
@@ -1964,14 +1964,14 @@ init_xu_control(Device *device, Control *control)
 	control->control.flags =
 		((info & (1 << 0)) ? CC_CAN_READ : 0) |
 		((info & (1 << 1)) ? CC_CAN_WRITE : 0);
-	printf("control flags =0x%x ret=%d\n", control->control.flags ,ret);
+	printf("query control flags of: 0x%x\n", control->control.flags);
 
 	// Query the min/max/def/res values
 	unsigned int i = 0;
 	for(i = 0; i < ARRAY_SIZE(values); i++) {
 		CControlValue *value = values[i].value;
 		
-		printf("%s = ",values[i].action);
+		printf("%s: ",values[i].action);
 		// Allocate a buffer for the raw value
 		value->type = control->control.type;
 		value->raw.data = calloc(1, control->uvc_size);
