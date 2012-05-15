@@ -793,62 +793,40 @@ add_control_mappings(CHandle hDevice, const char *filename)
  * Convert char array to short
  */
 static 
-uint16_t convert_short(char short_str[5], int base)
-{
-	uint32_t val = 0;
-	// a short can be 5 digits long in base 10 (65535) but it's always four in hex
-	uint16_t mult[5] = {1, base, base*base, base*base*base, base*base*base*base};
-	int loop_i = 0;
+uint8_t convert_byte(char str[2], int base) {
+	uint8_t val = 0;
 	int i = 0;
+	uint8_t mult[2] = {1, base};
 	
 	if (base == 16)
 	{
-		for (i=3; i >= 0; i--) {
-			if (isdigit(short_str[i])) {
-				val += (short_str[i] - '0') * mult[loop_i];
+		for(i=0; i<2; i++) {
+			if (isdigit(str[i])) {
+				val += (str[i] - '0') * mult[i];
 			}
-			else if (isalpha(short_str[i]) && (toupper(short_str[i]) >= 'A') && (toupper(short_str[i]) <= 'F')) {
-				val += (10 + (toupper(short_str[i]) - 'A')) * mult[loop_i];
+			else if (isalpha(str[i]) && (toupper(str[i]) >= 'A') && (toupper(str[i]) <= 'F')) {
+				val += (10 + (toupper(str[i]) - 'A')) * mult[i];
 			}
 			else
 				break;
-		
-			loop_i++;
 		}
 	}
 	else //base 10
 	{
-		//for (i=4; i >= 0; i--) {
-		//	if (isdigit(short_str[i])) {
-		//		val += (short_str[i] - '0') * mult[loop_i];
-		//	}
-		//	else
-		//		break;
-		//
-		//	loop_i++;
-		//}
 		printf("base value not supported (only base 16)\n");
 	}
 	
-	//clip short
-	if(val > 0xffff)
-	{
-		printf("value %.8x to big clipping to 0xffff\n", val);
-		val = 0xffff;
-	}
-	
-	return (uint16_t) val;
+	return val;
 }
 
 static 
-int convert_raw_string(void *raw_data, int max_size, char raw_str[])
-{
+int convert_raw_string(void *raw_data, int max_size, char raw_str[]) {
 	int i = 0;
 	//uint16_t temp = 0;
 	int base = 16;
 	int start_i = 0;
 	int data_index = 0;
-	uint16_t *data = (uint16_t *) raw_data;
+	uint8_t *data = (uint8_t *) raw_data;
 	//max size is in bytes, max_ind refers to uint16_t (2 bytes)
 	int max_ind = max_size/2; 
 	//convert raw_data string
@@ -858,62 +836,36 @@ int convert_raw_string(void *raw_data, int max_size, char raw_str[])
 	if((length > 2) && raw_str[0] == '0' && isalpha(raw_str[1]) && (toupper(raw_str[1]) == 'X')) { //hex
 		base = 16;
 		start_i = 2;
-		max_count = 4; // 4 digits in base 16
 	}
 	else { //we assume value data is in hex format
 		printf("Assuming hex value (base 16)\n");
 		base = 16;
 		start_i = 0;
-		max_count = 4; // a short can be 5 digits long in base 10 (65535)
 	}
 	
 	printf("... using base %d\n", base);
 	
-	char short_str[5];
-	int count = 0;
-	uint16_t val = 0;
-	
-	//loop shorts
-	
-	for (i=start_i; i < length; i++) {
-	
-		
-		if(count < max_count)
+	char str[2];
+	for(i=start_i; i<length; i++) {
+		if(i+1 < length)
 		{
-			short_str[count] = raw_str[i];
+			str[1] = raw_str[i];
+			str[0] = raw_str[i+1];
+			i++;
 		}
-		else {
-			val = convert_short(short_str, base);
-			data[data_index] = htole16(val);
-			data_index++;
-			//get current value
-			count = 0;
-			val = 0;
-			if(data_index > max_ind) {
-				printf("raw data buffer full\n");
-				break;
-			}
-			short_str[0]='0';
-			short_str[1]='0';
-			short_str[2]='0';
-			short_str[3]='0';
-			short_str[4]='0';
-			short_str[count] = raw_str[i];
+		else
+		{
+			str[1] = 0;
+			str[0] = raw_str[i];
 		}
-		count++;
-	}
-	
-	if(count > 0) {
-		char tmp[5] = {0,0,0,0,0};
-		for(i=0; i<count; i++)
-			tmp[max_count-(count-i)] = short_str[i];
-		val = convert_short(tmp, base);
-		data[data_index] = htole16(val);
+		
+		data[data_index] = convert_byte(str, base);
+		printf("%.2x\n",data[data_index]);
 		data_index++;
 	}
 	
 	// size in bytes
-	return (data_index * 2);
+	return (data_index);
 }
 
 int
@@ -1090,15 +1042,12 @@ main (int argc, char **argv)
 		}
 		
 		//print the raw value
-		char val[value.raw.size];
-		strncpy(val, value.raw.data, value.raw.size) ;
-		int i=0;
 		printf("current value is = ");
-		for(i=0;i<value.raw.size;i+=2)
+		uint8_t * val = value.raw.data;
+		int i=0;
+		for(i=0;i<value.raw.size;i++)
 		{
-			uint16_t dat = val[i] + (val[i+1]<< 8);
-			dat = le16toh(dat);
-			printf("%.4x", dat);
+			printf("%.2x", val[i]);
 		}
 		printf("\n");
 		//free the raw value alocation
@@ -1140,8 +1089,9 @@ main (int argc, char **argv)
 		uint16_t unit_id;
 		unsigned char selector;
 		char raw_str[80];
-		sscanf(args_info.get_raw_arg, "%hu:%hhu:%s", &unit_id, &selector, raw_str);
-
+		sscanf(args_info.set_raw_arg, "%hu:%hhu:%s", &unit_id, &selector, raw_str);
+		
+		printf("setting control %hu - %hhu to %s\n", unit_id, selector, raw_str);
 		CControlValue value;
 		value.type = CC_TYPE_RAW;
 		
@@ -1149,7 +1099,6 @@ main (int argc, char **argv)
 		value.raw.data = malloc(value.raw.size);
 		
 		int size = convert_raw_string(value.raw.data, value.raw.size, raw_str);
-		
 		value.raw.size = size;
 		// the entity is only used for the generating a control name
 		//TODO: pass the guid through cmdline (optional)
@@ -1161,17 +1110,14 @@ main (int argc, char **argv)
 		}
 		
 		//print the raw value
-		char val[value.raw.size];
-		strncpy(val, value.raw.data, value.raw.size) ;
+		uint8_t * val = value.raw.data;
 		int i=0;
-		printf("current value is = ");
-		for(i=0;i<value.raw.size;i+=2)
+		for(i=0;i<value.raw.size;i++)
 		{
-			uint16_t dat = val[i] + (val[i+1]<< 8);
-			dat = le16toh(dat);
-			printf("%.4x", dat);
+			printf("%.2x", val[i]);
 		}
-		printf("\n");
+		printf(" res=%d\n",res);
+		
 		//free the raw value alocation
 		if(value.raw.data) free(value.raw.data);
 	}

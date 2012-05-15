@@ -1984,15 +1984,12 @@ init_xu_control(Device *device, Control *control)
 		// Query the raw value
 		ret = query_xu_control(v4l2_dev, control, values[i].query,
 				control->uvc_size, value->raw.data, values[i].action);
-		char val[control->uvc_size];
-		strncpy(val, value->raw.data, control->uvc_size) ;
-	
+		
+		uint8_t * val = value->raw.data;
 		int i=0;
-		for(i=0;i<control->uvc_size;i+=2)
+		for(i=0;i<control->uvc_size;i++)
 		{
-			uint16_t dat = val[i] + (val[i+1]<< 8);
-			dat = le16toh(dat);
-			printf("%.4x", dat);
+			printf("%.2x", val[i]);
 		}
 		printf(" ret=%d\n",ret);
 		
