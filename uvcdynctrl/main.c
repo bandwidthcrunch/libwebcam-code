@@ -1033,14 +1033,12 @@ main (int argc, char **argv)
 		//print the raw value le and be format
 		uint8_t * val = value.raw.data;
 		int i=0;
-		printf("set value: (LE)0x")
-		for(i=0; i<value.raw.size; i++)
-		{
+		printf("set value: (LE)0x");
+		for(i=0; i<value.raw.size; i++)	{
 			printf("%.2x", val[i]);
 		}
 		printf(" (BE)0x");
-		for(i=value.raw.size-1; i >=0; i--)
-		{
+		for(i=value.raw.size-1; i >=0; i--) {
 			printf("%.2x", val[i]);
 		}
 		printf("\n");

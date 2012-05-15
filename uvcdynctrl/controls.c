@@ -99,11 +99,8 @@ int convert_raw_string(void *raw_data, int max_size, char raw_str[]) {
 	int start_i = 0;
 	int data_index = 0;
 	uint8_t *data = (uint8_t *) raw_data;
-	//max size is in bytes, max_ind refers to uint16_t (2 bytes)
-	int max_ind = max_size/2; 
 	//convert raw_data string
 	int length = strlen(raw_str);
-	int max_count = 4;
 	
 	//check endianess
 	if((length > 4) && raw_str[start_i] == '(' && raw_str[start_i+3] == ')') {
@@ -252,12 +249,12 @@ parse_control_value (const char *string, CControlValue *value)
 }
 
 int
-parse_raw_control_value (const char *string, CControlValue *value)
+parse_raw_control_value (char *string, CControlValue *value)
 {
 	assert(string);
 	assert(value);
 	
-	value.type = CC_TYPE_RAW;
+	value->type = CC_TYPE_RAW;
 	/* hex format:
 	 * 1/2 chars => 1 byte e.g. 0xF = 0x0F
 	 * 3/4 chars => 2 bytes e.g. 0xFFF = 0x0FFF
