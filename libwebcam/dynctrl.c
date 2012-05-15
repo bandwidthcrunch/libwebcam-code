@@ -1985,13 +1985,20 @@ init_xu_control(Device *device, Control *control)
 		ret = query_xu_control(v4l2_dev, control, values[i].query,
 				control->uvc_size, value->raw.data, values[i].action);
 		
+		//print the resulting value in le and be format
 		uint8_t * val = value->raw.data;
 		int i=0;
-		for(i=0;i<control->uvc_size;i++)
+		printf("(LE)0x")
+		for(i=0; i<control->uvc_size; i++)
 		{
 			printf("%.2x", val[i]);
 		}
-		printf(" ret=%d\n",ret);
+		printf("  (BE)0x");
+		for(i=control->uvc_size-1; i >=0; i--)
+		{
+			printf("%.2x", val[i]);
+		}
+		printf("\n");
 		
 		if(ret != 0) {
 			res = C_V4L2_ERROR;

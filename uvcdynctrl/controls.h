@@ -32,5 +32,6 @@ extern CResult get_control_list (CHandle handle, CControl **controls, unsigned i
 
 extern int parse_control_value (const char *string, CControlValue *value);
 
+extern int parse_raw_control_value (const char *string, CControlValue *value);
 
 #endif /* LV_CONTROLS_H */

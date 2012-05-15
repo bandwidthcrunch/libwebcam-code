@@ -789,85 +789,6 @@ add_control_mappings(CHandle hDevice, const char *filename)
 	return res;
 }
 
-/*
- * Convert char array to short
- */
-static 
-uint8_t convert_byte(char str[2], int base) {
-	uint8_t val = 0;
-	int i = 0;
-	uint8_t mult[2] = {1, base};
-	
-	if (base == 16)
-	{
-		for(i=0; i<2; i++) {
-			if (isdigit(str[i])) {
-				val += (str[i] - '0') * mult[i];
-			}
-			else if (isalpha(str[i]) && (toupper(str[i]) >= 'A') && (toupper(str[i]) <= 'F')) {
-				val += (10 + (toupper(str[i]) - 'A')) * mult[i];
-			}
-			else
-				break;
-		}
-	}
-	else //base 10
-	{
-		printf("base value not supported (only base 16)\n");
-	}
-	
-	return val;
-}
-
-static 
-int convert_raw_string(void *raw_data, int max_size, char raw_str[]) {
-	int i = 0;
-	//uint16_t temp = 0;
-	int base = 16;
-	int start_i = 0;
-	int data_index = 0;
-	uint8_t *data = (uint8_t *) raw_data;
-	//max size is in bytes, max_ind refers to uint16_t (2 bytes)
-	int max_ind = max_size/2; 
-	//convert raw_data string
-	int length = strlen(raw_str);
-	int max_count = 4;
-	
-	if((length > 2) && raw_str[0] == '0' && isalpha(raw_str[1]) && (toupper(raw_str[1]) == 'X')) { //hex
-		base = 16;
-		start_i = 2;
-	}
-	else { //we assume value data is in hex format
-		printf("Assuming hex value (base 16)\n");
-		base = 16;
-		start_i = 0;
-	}
-	
-	printf("... using base %d\n", base);
-	
-	char str[2];
-	for(i=start_i; i<length; i++) {
-		if(i+1 < length)
-		{
-			str[1] = raw_str[i];
-			str[0] = raw_str[i+1];
-			i++;
-		}
-		else
-		{
-			str[1] = 0;
-			str[0] = raw_str[i];
-		}
-		
-		data[data_index] = convert_byte(str, base);
-		printf("%.2x\n",data[data_index]);
-		data_index++;
-	}
-	
-	// size in bytes
-	return (data_index);
-}
-
 int
 main (int argc, char **argv)
 {
@@ -1085,21 +1006,21 @@ main (int argc, char **argv)
 	}
 	// Set the raw control value
 	else if(args_info.set_raw_given) {
-		//scan input
+		CControlValue value;
+		
+		// Parse the control value
+		if(args_info.inputs_num < 1) {
+			res = 3;
+			print_error("No raw control value specified", -1);
+			goto done;
+		}
 		uint16_t unit_id;
 		unsigned char selector;
-		char raw_str[80];
-		sscanf(args_info.set_raw_arg, "%hu:%hhu:%s", &unit_id, &selector, raw_str);
+
+		sscanf(args_info.set_raw_arg, "%hu:%hhu", &unit_id, &selector);
 		
-		printf("setting control %hu - %hhu to %s\n", unit_id, selector, raw_str);
-		CControlValue value;
-		value.type = CC_TYPE_RAW;
+		parse_raw_control_value (args_info.inputs[0], &value);
 		
-		value.raw.size = 48;
-		value.raw.data = malloc(value.raw.size);
-		
-		int size = convert_raw_string(value.raw.data, value.raw.size, raw_str);
-		value.raw.size = size;
 		// the entity is only used for the generating a control name
 		//TODO: pass the guid through cmdline (optional)
 		unsigned char entity[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
@@ -1109,15 +1030,20 @@ main (int argc, char **argv)
 			goto done;
 		}
 		
-		//print the raw value
+		//print the raw value le and be format
 		uint8_t * val = value.raw.data;
 		int i=0;
-		for(i=0;i<value.raw.size;i++)
+		printf("set value: (LE)0x")
+		for(i=0; i<value.raw.size; i++)
 		{
 			printf("%.2x", val[i]);
 		}
-		printf(" res=%d\n",res);
-		
+		printf(" (BE)0x");
+		for(i=value.raw.size-1; i >=0; i--)
+		{
+			printf("%.2x", val[i]);
+		}
+		printf("\n");
 		//free the raw value alocation
 		if(value.raw.data) free(value.raw.data);
 	}
