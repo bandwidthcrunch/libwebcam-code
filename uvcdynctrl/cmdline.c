@@ -39,11 +39,11 @@ const char *gengetopt_args_info_help[] = {
   "  -g, --get=control        Retrieve the current control value",
   "  -G, --get_raw=unit_id:selector        Retrieve the current raw control value",
   "  -s, --set=control        Set a new control value\n"
-  "                             (For negative values: -s 'My Control' -- -42)",
+  "                            (For negative values: -s 'My Control' -- -42)",
   "  -S, --set_raw=unit_id:selector        Set the current raw control value\n"
-  "                             (value is a hex string of control size,\n"
-  "                              little endian by default - change with (BE) prefix:\n"
-  "                              -S 13:6 0x03020001 or -S 13:6 (BE)0x01000203 )\n",
+  "                            (value is a hex string of control size,\n"
+  "                             default is little endian- '(BE)' prefix to change:\n"
+  "                             -S 13:6 0x03020001 or -S 13:6 (BE)0x01000203 )\n",
   "  -f, --formats            List available frame formats",
   "  -W, --save=filename      Save device controls state to a file",
   "  -L, --load=filename      Load device controls state from a file",
