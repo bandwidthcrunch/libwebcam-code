@@ -29,7 +29,7 @@
 		
 		<constant type="integer">
 			<id>XU_HW_CONTROL_FLASH</id>
-			<value>1</value>
+			<value>4</value>
 		</constant>
 		
 		
